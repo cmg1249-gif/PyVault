@@ -2,14 +2,18 @@ from tkinter import *
 from tkinter import messagebox
 from random import choice, randint, shuffle
 import pyperclip
+import json
+
 DEFAULT_EMAIL = "@gmail.com"
 
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
-#Password Generator Project
+# Password Generator Project
 def generate_password():
 	pw_entry.delete(0, END)
-	letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+	letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
+	           'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+	           'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 	numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 	symbols = ['!', '#', '$', '%', '&', '(', ')', '*', '+']
 
@@ -24,32 +28,59 @@ def generate_password():
 	pw_entry.insert(0, password)
 	pyperclip.copy(password)
 
+
 # ---------------------------- SAVE PASSWORD ------------------------------- #
 def save():
 	website = web_entry.get()
 	username = e_u_entry.get()
 	password = pw_entry.get()
-	entries = [website, username, password]
+	new_data = {website: {
+		"email": username,
+		"password": password,
 
-	if "" in entries:
-		messagebox.showerror("Error", "Please enter all required fields")
-		return
+		}
 
-	is_ok =	messagebox.askokcancel("Password Manager",
-		                    f"These are the details entered: \nEmail:{username}\nPassword:{password}\n "
-		                    f"Is it ok to save?")
-	if is_ok:
-		if "" not in entries:
+	}
+	if len(website) == 0 or len(password) == 0:
+		messagebox.showerror("Oops!", "Please enter all fields")
+	else:
+		try:
+			with open("data.json", "r") as file:
 
-			with open("data.txt", "a") as file:
-				file.write(f"{website}  |  {username}  |  {password}\n")
+				# Read Old Data
+				data = json.load(file)
+		except FileNotFoundError:
+			with open("data.json", "w") as file:
+				json.dump(new_data, file, indent=4)
+		else:
+			# Updating Old Data with New Data
+			data.update(new_data)
 
+			with open("data.json", "w") as file:
+				json.dump(data, file, indent=4)
+		finally:
 			web_entry.delete(0, END)
-			e_u_entry.delete(0, END)
 			pw_entry.delete(0, END)
 
+# ---------------------------- Find Password --------------------------#
+def find_password():
+	website = web_entry.get()
+	try:
+		with open("data.json", "r") as file:
+			data = json.load(file)
+	except KeyError:
+		messagebox.showinfo("Oops!", "File info not found!")
+	else:
+		try:
+			site = data[website]
+			email = site["email"]
+			password = site["password"]
+			if website in data:
+				messagebox.showinfo(title =f"Data Found for {website}!", message=f"Email :{email}\nPassword : {password}")
+		except KeyError:
+			messagebox.showinfo(title="Oops", message="Account info not found!")
 
-# ---------------------------- UI SETUP ------------------------------- #
+# ---------------------------- UI SETUP ----------------------------- #
 # Window Creation
 window = Tk()
 window.title("Password Manager")
@@ -74,7 +105,7 @@ password_label.grid(row=3, column=0)
 
 # Entry Creation
 web_entry = Entry(width=35, bg="white", fg="black")
-web_entry.grid(row=1, column=1, columnspan=2, sticky=EW)
+web_entry.grid(row=1, column=1, sticky=EW)
 
 e_u_entry = Entry(width=35, bg="white", fg="black")
 e_u_entry.grid(row=2, column=1, columnspan=2, sticky=EW)
@@ -90,5 +121,8 @@ generate_button.grid(row=3, column=2)
 
 add_button = Button(width=36, text="Add", bg="white", fg="black", command=save)
 add_button.grid(row=4, column=1, columnspan=2, sticky=EW)
+
+search_button = Button(text="Search", bg="white", fg="black", command=find_password)
+search_button.grid(row=1, column=2, sticky=EW)
 
 window.mainloop()
