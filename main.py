@@ -2,7 +2,8 @@ from tkinter import *
 from tkinter import messagebox
 from random import choice, randint, shuffle
 import pyperclip
-import json
+from cryptography.fernet import InvalidToken
+import encryption
 
 DEFAULT_EMAIL = "@gmail.com"
 
@@ -38,49 +39,57 @@ def save():
 		"email": username,
 		"password": password,
 
-		}
+	}
 
 	}
 	if len(website) == 0 or len(password) == 0:
 		messagebox.showerror("Oops!", "Please enter all fields")
 	else:
 		try:
-			with open("data.json", "r") as file:
-
-				# Read Old Data
-				data = json.load(file)
+			# Read Old Data
+			data = encryption.load_data()
 		except FileNotFoundError:
-			with open("data.json", "w") as file:
-				json.dump(new_data, file, indent=4)
+			encryption.save_data(new_data)
+			messagebox.showinfo("WARNING", "Do not delete your key's in your OS's key manager. Your data will be lost!")
+		except InvalidToken:
+			delete_y_n = messagebox.askyesno(title="Vault Can't Be Unlocked",
+			                                 message="Key's do not match. Delete vault and start fresh? THIS ERASES ALL SAVED PASSWORDS!")
+			if delete_y_n:
+				encryption.delete_vault()
 		else:
 			# Updating Old Data with New Data
 			data.update(new_data)
-
-			with open("data.json", "w") as file:
-				json.dump(data, file, indent=4)
+			encryption.save_data(data)
 		finally:
 			web_entry.delete(0, END)
 			pw_entry.delete(0, END)
+
 
 # ---------------------------- Find Password --------------------------#
 def find_password():
 	website = web_entry.get()
 	try:
-		with open("data.json", "r") as file:
-			data = json.load(file)
-	except KeyError:
+		data = encryption.load_data()
+	except FileNotFoundError:
 		messagebox.showinfo("Oops!", "File info not found!")
+	except InvalidToken:
+		delete_y_n = messagebox.askyesno(title="Vault Can't Be Unlocked",
+		                                 message="Keys do not match. Delete vault and start fresh? THIS ERASES ALL SAVED PASSWORDS!")
+		if delete_y_n:
+			encryption.delete_vault()
 	else:
 		try:
 			site = data[website]
 			email = site["email"]
 			password = site["password"]
-			if website in data:
-				messagebox.showinfo(title =f"Data Found for {website}!", message=f"Email :{email}\nPassword : {password}")
+			messagebox.showinfo(title=f"Data Found for {website}!", message=f"Email :{email}\nPassword : {password}")
 		except KeyError:
 			messagebox.showinfo(title="Oops", message="Account info not found!")
 
+
 # ---------------------------- UI SETUP ----------------------------- #
+# Encrypt json data if its there and remove json file
+encryption.migrate()
 # Window Creation
 window = Tk()
 window.title("Password Manager")
