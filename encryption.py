@@ -41,7 +41,9 @@ def migrate():
 			data = json.load(file)
 			save_data(data)
 		os.remove("data.json")
+
 def delete_vault():
 	os.remove(DATA_FILE)
+
 
 

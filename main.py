@@ -86,19 +86,45 @@ def find_password():
 		except KeyError:
 			messagebox.showinfo(title="Oops", message="Account info not found!")
 
+#---------------------- All accounts --------------------------#
+def find_all_accounts():
+	try:
+		data = encryption.load_data()
+	except FileNotFoundError:
+		messagebox.showinfo("Oops!", "File info not found!")
+	except InvalidToken:
+		delete_y_n = messagebox.askyesno(title="Vault Can't Be Unlocked",
+		                                 message="Keys do not match. Delete vault and start fresh? THIS ERASES ALL SAVED PASSWORDS!")
+		if delete_y_n:
+			encryption.delete_vault()
+	else:
+		try:
+			sites_and_user_name = [f"Website: {website}\nUsername:{details['email']}\n" for website, details in data.items()]
+			sites_and_user_name = "\n -------------------------------- \n".join(sites_and_user_name)
+			# Creating Popup Window
+			popup = Toplevel()
+			popup.title("All Accounts")
+			popup.minsize()
+			# Text Box
+			text_box = Text(popup, bg="white", fg="black")
+			text_box.insert(END, sites_and_user_name)
+			text_box.grid(row=0, column=0)
+		except KeyError:
+			messagebox.showinfo(title="Oops", message="Email entry corrupted")
+
 
 # ---------------------------- UI SETUP ----------------------------- #
 # Encrypt json data if its there and remove json file
 encryption.migrate()
 # Window Creation
 window = Tk()
-window.title("Password Manager")
+window.title("PyVault: Password Manager")
 window.minsize(300, 300)
 window.config(bg="white", padx=50, pady=50)
 
 # Lock Canvas Creation
 canvas = Canvas(width=200, height=200, bg="white", highlightthickness=0)
-lock_img = PhotoImage(file="logo.png")
+lock_img = PhotoImage(file="logo_final_200.png")
 canvas.create_image(100, 100, image=lock_img)
 canvas.grid(row=0, column=1)
 
@@ -133,5 +159,8 @@ add_button.grid(row=4, column=1, columnspan=2, sticky=EW)
 
 search_button = Button(text="Search", bg="white", fg="black", command=find_password)
 search_button.grid(row=1, column=2, sticky=EW)
+
+all_accounts_button = Button(width=16, text="All Accounts", bg="white", fg="black", command=find_all_accounts)
+all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
 
 window.mainloop()
