@@ -5,7 +5,7 @@ import pyperclip
 from cryptography.fernet import InvalidToken
 import encryption
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 DEFAULT_EMAIL = "@gmail.com"
 
 
@@ -64,6 +64,11 @@ def save():
 		finally:
 			web_entry.delete(0, END)
 			pw_entry.delete(0, END)
+# ---------------------------- Delete Account Data ---------------------------------------- #
+def delete(account):
+	data = encryption.load_data()
+	data.pop(account, None)
+	encryption.save_data(data)
 
 
 # ---------------------------- Find Password --------------------------#
@@ -78,6 +83,7 @@ def find_password():
 		                                 message="Keys do not match. Delete vault and start fresh? THIS ERASES ALL SAVED PASSWORDS!")
 		if delete_y_n:
 			encryption.delete_vault()
+
 	else:
 		try:
 			site = data[website]
@@ -100,20 +106,34 @@ def find_all_accounts():
 			encryption.delete_vault()
 	else:
 		try:
-			sites_and_user_name = [f"Website: {website}\nUsername:{details['email']}\n" for website, details in data.items()]
-			sites_and_user_name = "\n -------------------------------- \n".join(sites_and_user_name)
+			sites_and_user_name = [f"{website} - {details['email']}" for website, details in data.items()]
+			websites = list(data.keys())
+
 			# Creating Popup Window
 			popup = Toplevel()
 			popup.title("All Accounts")
 			popup.minsize()
 			# Text Box
-			text_box = Text(popup, bg="white", fg="black")
-			text_box.insert(END, sites_and_user_name)
+			text_box = Listbox(popup, bg="white", fg="black", height=15, width=50)
+			for row in sites_and_user_name:
+				text_box.insert(END, row)
+
 			text_box.grid(row=0, column=0)
+
+			def delete_selected():
+				selection = text_box.curselection()
+				if selection:
+					index = selection[0]
+					account = websites[index]
+					y_or_n =messagebox.askyesno(title="Delete Selected Account?",message=f"Do you want to delete this account? {account}?", parent=popup)
+					if y_or_n:
+						delete(account)
+						text_box.delete(index)
+						websites.pop(index)
+			delete_button = Button(popup, text="Delete Selected Account", bg="white", fg="black", command=delete_selected)
+			delete_button.grid(row=0, column=1)
 		except KeyError:
 			messagebox.showinfo(title="Oops", message="Email entry corrupted")
-
-
 # ---------------------------- UI SETUP ----------------------------- #
 # Encrypt json data if its there and remove json file
 encryption.migrate()
@@ -163,5 +183,6 @@ search_button.grid(row=1, column=2, sticky=EW)
 
 all_accounts_button = Button(width=16, text="All Accounts", bg="white", fg="black", command=find_all_accounts)
 all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
+
 
 window.mainloop()
