@@ -5,6 +5,7 @@ import pyperclip
 from cryptography.fernet import InvalidToken
 import encryption
 
+VERSION = "1.2.0"
 DEFAULT_EMAIL = "@gmail.com"
 
 
@@ -118,7 +119,7 @@ def find_all_accounts():
 encryption.migrate()
 # Window Creation
 window = Tk()
-window.title("PyVault: Password Manager")
+window.title(f"PyVault: Password Manager v{VERSION}")
 window.minsize(300, 300)
 window.config(bg="white", padx=50, pady=50)
 
