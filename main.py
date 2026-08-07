@@ -8,7 +8,7 @@ import secrets
 import string
 import threading
 
-VERSION = "1.4.2"
+VERSION = "1.4.3"
 DEFAULT_EMAIL = "@gmail.com"
 popup = None
 
@@ -165,6 +165,8 @@ def find_all_accounts():
 					delete_button = Button(popup, text="Delete Selected Account", bg="white", fg="black",
 					                       command=delete_selected)
 					delete_button.grid(row=0, column=1)
+				else:
+					popup.lift()
 			# Text Box
 			open_pop_up()
 

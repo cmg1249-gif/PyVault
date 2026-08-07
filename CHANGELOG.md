@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.4.3 — 2026-08-07
+
+- Clicking All Accounts while the window is already open now raises it to
+  the front (`lift()`) instead of doing nothing
+
 ## v1.4.2 — 2026-08-07
 
 - **Bug fix**: closed the v1.4.1 known issue — All Accounts widgets are now
