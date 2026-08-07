@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.2 — 2026-08-07
+
+- **Bug fix**: closed the v1.4.1 known issue — All Accounts widgets are now
+  built only when the window is created, so repeat clicks while it's open
+  no longer stack duplicate widgets (quiet memory leak)
+
 ## v1.4.1 — 2026-08-07
 
 - **Bug fix**: All Accounts window is now a singleton — clicking the button

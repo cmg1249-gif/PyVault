@@ -8,7 +8,7 @@ import secrets
 import string
 import threading
 
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 DEFAULT_EMAIL = "@gmail.com"
 popup = None
 
@@ -143,26 +143,31 @@ def find_all_accounts():
 					popup.title("All Accounts")
 					popup.minsize()
 					popup.protocol("WM_DELETE_WINDOW", on_close)
+					text_box = Listbox(popup, bg="white", fg="black", height=15, width=50)
+					for row in sites_and_user_name:
+						text_box.insert(END, row)
+
+					text_box.grid(row=0, column=0)
+
+					def delete_selected():
+						selection = text_box.curselection()
+						if selection:
+							index = selection[0]
+							account = websites[index]
+							y_or_n = messagebox.askyesno(title="Delete Selected Account?",
+							                             message=f"Do you want to delete this account? {account}?",
+							                             parent=popup)
+							if y_or_n:
+								delete(account)
+								text_box.delete(index)
+								websites.pop(index)
+
+					delete_button = Button(popup, text="Delete Selected Account", bg="white", fg="black",
+					                       command=delete_selected)
+					delete_button.grid(row=0, column=1)
 			# Text Box
 			open_pop_up()
-			text_box = Listbox(popup, bg="white", fg="black", height=15, width=50)
-			for row in sites_and_user_name:
-				text_box.insert(END, row)
 
-			text_box.grid(row=0, column=0)
-
-			def delete_selected():
-				selection = text_box.curselection()
-				if selection:
-					index = selection[0]
-					account = websites[index]
-					y_or_n =messagebox.askyesno(title="Delete Selected Account?",message=f"Do you want to delete this account? {account}?", parent=popup)
-					if y_or_n:
-						delete(account)
-						text_box.delete(index)
-						websites.pop(index)
-			delete_button = Button(popup, text="Delete Selected Account", bg="white", fg="black", command=delete_selected)
-			delete_button.grid(row=0, column=1)
 		except KeyError:
 			messagebox.showinfo(title="Oops", message="Email entry corrupted")
 # ---------------------------- UI SETUP ----------------------------- #
