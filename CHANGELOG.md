@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.1 — 2026-08-07
+
+- **Bug fix**: All Accounts window is now a singleton — clicking the button
+  while the window is open no longer spawns duplicate windows, and closing
+  it with the X properly resets state so it can be reopened
+- Known issue: clicking All Accounts while the window is open re-creates
+  its widgets in place (harmless, cleanup planned)
+
 ## v1.4.0 — 2026-08-07
 
 - Password generator now uses the **`secrets` module** (cryptographically

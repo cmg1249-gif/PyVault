@@ -6,6 +6,7 @@ KEYRING_SERVICE = "PyVault-pw-manager"
 KEYRING_USER = "PyVault-user"
 DATA_FILE = "data.enc"
 
+
 def get_key():
 	"""Gets key from keyring, returns key, makes one if there isnt one"""
 	saved_key = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)

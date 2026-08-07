@@ -8,9 +8,9 @@ import secrets
 import string
 import threading
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 DEFAULT_EMAIL = "@gmail.com"
-
+popup = None
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
 # Password Generator Project
@@ -19,7 +19,7 @@ def generate_password():
 
 	password_letters: list = [letter for letter in string.ascii_letters]
 	password_symbols: list = [letter for letter in string.punctuation]
-	password_numbers: list = [letter for letter in string.digits]
+	password_numbers = [letter for letter in string.digits]
 	new_pw: list = (
 		[secrets.choice(password_letters) for _ in range(7)]
 		+ [secrets.choice(password_symbols) for _ in range(2)]
@@ -37,10 +37,12 @@ def generate_password():
 		"""Copy text securely to the clipboard, then uses clear_clipboard() it after 10 seconds"""
 		pyperclip.copy(text)
 
+
 		# Opening another thread to clear the clipboard
 		t = threading.Thread(target=clear_clipboard, args=(delay_seconds, pyperclip.paste()))
 		t.daemon = True
 		t.start()
+
 
 	def secure_shuffle(items: list) -> None:
 		"""Shuffle a list in place using cryptographically secure random order.(I found this on the internet, I did not figure this one out on my own :)"""
@@ -48,10 +50,12 @@ def generate_password():
 			j = secrets.randbelow(i + 1)
 			items[i], items[j] = items[j], items[i]
 
+
 	secure_shuffle(new_pw)
 	new_pw = "".join(new_pw)
 	pw_entry.insert(0, new_pw)
 	secure_copy(new_pw)
+
 
 # ---------------------------- SAVE PASSWORD ------------------------------- #
 def save():
@@ -92,6 +96,7 @@ def delete(account):
 	data.pop(account, None)
 	encryption.save_data(data)
 
+
 # ---------------------------- Find Password --------------------------#
 def find_password():
 	website = web_entry.get()
@@ -131,10 +136,15 @@ def find_all_accounts():
 			websites = list(data.keys())
 
 			# Creating Popup Window
-			popup = Toplevel()
-			popup.title("All Accounts")
-			popup.minsize()
+			def open_pop_up():
+				global popup
+				if popup is None:
+					popup = Toplevel(window)
+					popup.title("All Accounts")
+					popup.minsize()
+					popup.protocol("WM_DELETE_WINDOW", on_close)
 			# Text Box
+			open_pop_up()
 			text_box = Listbox(popup, bg="white", fg="black", height=15, width=50)
 			for row in sites_and_user_name:
 				text_box.insert(END, row)
@@ -155,8 +165,16 @@ def find_all_accounts():
 			delete_button.grid(row=0, column=1)
 		except KeyError:
 			messagebox.showinfo(title="Oops", message="Email entry corrupted")
-
 # ---------------------------- UI SETUP ----------------------------- #
+# Popup Management
+
+def on_close():
+	global popup
+	popup.destroy()
+	popup = None
+
+
+
 # Encrypt json data if its there and remove json file
 encryption.migrate()
 # Window Creation
@@ -205,5 +223,6 @@ search_button.grid(row=1, column=2, sticky=EW)
 
 all_accounts_button = Button(width=16, text="All Accounts", bg="white", fg="black", command=find_all_accounts)
 all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
+
 
 window.mainloop()
