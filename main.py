@@ -26,7 +26,6 @@ def generate_password():
 		+ [secrets.choice(password_numbers) for _ in range(4)]
 	)
 
-
 	def clear_clipboard(delay_seconds, pw_text):
 		"""Clears the clipboard"""
 		# Wait for default time of 10 seconds
