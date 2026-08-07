@@ -1,12 +1,14 @@
 from tkinter import *
 from tkinter import messagebox
-from random import choice, randint, shuffle
+import time
 import pyperclip
 from cryptography.fernet import InvalidToken
 import encryption
-#import secrets
-#import string
-VERSION = "1.3.0"
+import secrets
+import string
+import threading
+
+VERSION = "1.4.0"
 DEFAULT_EMAIL = "@gmail.com"
 
 
@@ -14,43 +16,43 @@ DEFAULT_EMAIL = "@gmail.com"
 # Password Generator Project
 def generate_password():
 	pw_entry.delete(0, END)
-	letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
-	           'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-	           'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-	numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-	symbols = ['!', '#', '$', '%', '&', '(', ')', '*', '+']
 
-	password_letters = [choice(letters) for _ in range(randint(8, 10))]
-	password_symbols = [choice(symbols) for _ in range(randint(2, 4))]
-	password_numbers = [choice(numbers) for _ in range(randint(2, 4))]
+	password_letters: list = [letter for letter in string.ascii_letters]
+	password_symbols: list = [letter for letter in string.punctuation]
+	password_numbers: list = [letter for letter in string.digits]
+	new_pw: list = (
+		[secrets.choice(password_letters) for _ in range(7)]
+		+ [secrets.choice(password_symbols) for _ in range(2)]
+		+ [secrets.choice(password_numbers) for _ in range(4)]
+	)
 
-	password_list = password_letters + password_symbols + password_numbers
-	shuffle(password_list)
 
-	password = "".join(password_list)
-	pw_entry.insert(0, password)
-	pyperclip.copy(password)
-	# ascii: list = [letter for letter in string.ascii_letters]
-	# digits: list = [letter for letter in string.digits]
-	# punctuation: list = [letter for letter in string.punctuation]
-	# new_pw: list = []
-	# for _ in range(7):
-	# 	new_pw.append(secrets.choice(ascii))
-	# for _ in range(5):
-	# 	new_pw.append(secrets.choice(digits))
-	# for _ in range(3):
-	# 	new_pw.append(secrets.choice(punctuation))
-	#
-	# def secure_shuffle(items: list) -> None:
-	# 	"""Shuffle a list in place using cryptographically secure random order"""
-	# 	for i in range(len(items) - 1, 0, -1):
-	# 		j = secrets.randbelow(i + 1)
-	# 		items[i], items[j] = items[j], items[i]
-	#
-	# secure_shuffle(new_pw)
-	# new_pw = ''.join(new_pw)
-	# print(new_pw)
+	def clear_clipboard(delay_seconds, pw_text):
+		"""Clears the clipboard"""
+		# Wait for default time of 10 seconds
+		time.sleep(delay_seconds)
+		if pyperclip.paste() == pw_text:
+			pyperclip.copy('')
 
+	def secure_copy(text, delay_seconds=10):
+		"""Copy text securely to the clipboard, then uses clear_clipboard() it after 10 seconds"""
+		pyperclip.copy(text)
+
+		# Opening another thread to clear the clipboard
+		t = threading.Thread(target=clear_clipboard, args=(delay_seconds, pyperclip.paste()))
+		t.daemon = True
+		t.start()
+
+	def secure_shuffle(items: list) -> None:
+		"""Shuffle a list in place using cryptographically secure random order.(I found this on the internet, I did not figure this one out on my own :)"""
+		for i in range(len(items) - 1, 0, -1):
+			j = secrets.randbelow(i + 1)
+			items[i], items[j] = items[j], items[i]
+
+	secure_shuffle(new_pw)
+	new_pw = "".join(new_pw)
+	pw_entry.insert(0, new_pw)
+	secure_copy(new_pw)
 
 # ---------------------------- SAVE PASSWORD ------------------------------- #
 def save():
@@ -90,7 +92,6 @@ def delete(account):
 	data = encryption.load_data()
 	data.pop(account, None)
 	encryption.save_data(data)
-
 
 # ---------------------------- Find Password --------------------------#
 def find_password():
@@ -155,6 +156,7 @@ def find_all_accounts():
 			delete_button.grid(row=0, column=1)
 		except KeyError:
 			messagebox.showinfo(title="Oops", message="Email entry corrupted")
+
 # ---------------------------- UI SETUP ----------------------------- #
 # Encrypt json data if its there and remove json file
 encryption.migrate()
@@ -204,6 +206,5 @@ search_button.grid(row=1, column=2, sticky=EW)
 
 all_accounts_button = Button(width=16, text="All Accounts", bg="white", fg="black", command=find_all_accounts)
 all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
-
 
 window.mainloop()

@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.0 — 2026-08-07
+
+- Password generator now uses the **`secrets` module** (cryptographically
+  secure randomness) instead of `random`
+- Character pools expanded via the `string` module: all ASCII letters,
+  digits, and full punctuation set
+- Cryptographically secure in-place shuffle (Fisher–Yates with
+  `secrets.randbelow`)
+- **Clipboard auto-clear**: generated passwords are wiped from the
+  clipboard after 10 seconds (only if the clipboard still holds the
+  password, so anything you copied in the meantime is left alone)
+
 ## v1.3.0 — 2026-07-18
 
 - **Delete accounts** from the All Accounts window: click an entry, hit
