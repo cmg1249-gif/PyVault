@@ -2,8 +2,8 @@ import keyring
 import json
 from cryptography.fernet import Fernet
 import os
-KEYRING_SERVICE = "connor-mylock-pw-manager"
-KEYRING_USER = "connor-mylock-user"
+KEYRING_SERVICE = "PyVault-pw-manager"
+KEYRING_USER = "PyVault-user"
 DATA_FILE = "data.enc"
 
 def get_key():
