@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.6.1 — 2026-08-09
+
+- **Bug fix**: the logo is now loaded from a path anchored to the program
+  file instead of the working directory, so launching PyVault from anywhere
+  other than its own folder no longer fails to find it
+
 ## v1.6.0 — 2026-08-08
 
 - **Vault moved out of the program folder** to `~/PyVault_Vault/data.enc`.

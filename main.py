@@ -9,9 +9,10 @@ from cryptography.fernet import InvalidToken
 from requests import RequestException
 from tkinter import *
 from tkinter import messagebox
-
-VERSION: str = "1.6.0"
+from pathlib import Path
+VERSION: str = "1.6.1"
 DEFAULT_EMAIL: str = "@gmail.com"
+LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
 popup = None
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
@@ -205,7 +206,7 @@ window.config(bg="white", padx=50, pady=50)
 
 # Lock Canvas Creation
 canvas = Canvas(width=200, height=200, bg="white", highlightthickness=0)
-lock_img = PhotoImage(file="logo_final_200.png")
+lock_img = PhotoImage(file=LOGO_IMG_PATH)
 canvas.create_image(100, 100, image=lock_img)
 canvas.grid(row=0, column=1)
 
