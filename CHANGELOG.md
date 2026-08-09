@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.6.0 — 2026-08-08
+
+- **Vault moved out of the program folder** to `~/PyVault_Vault/data.enc`.
+  Updating, re-downloading, or moving PyVault no longer looks like your
+  passwords vanished — the vault lives in your home directory and survives
+- **Automatic migration**: an existing `data.enc` sitting next to the program
+  is moved to the new location on first launch. Runs once, never overwrites
+  a vault that's already in the new spot
+- **Fix**: "Delete vault and start fresh" now also removes the encryption key
+  from the OS keyring. Previously the old key was reused, so a fresh vault
+  was encrypted with the key from the vault you just discarded
+- **Fix**: file paths no longer depend on the working directory the app was
+  launched from — the vault and the legacy-file lookup both resolve to fixed
+  locations regardless of how PyVault is started
+- Deleting a vault that's already gone no longer raises
+
 ## v1.5.0 — 2026-08-08
 
 - **Breach check on save (PwnCheck)**: before saving, passwords are checked

@@ -1,17 +1,16 @@
-from tkinter import *
-from tkinter import messagebox
 import time
 import pyperclip
-from cryptography.fernet import InvalidToken
-from requests import RequestException
-
 import encryption
 import secrets
 import string
 import threading
 import pwn_checker
+from cryptography.fernet import InvalidToken
+from requests import RequestException
+from tkinter import *
+from tkinter import messagebox
 
-VERSION: str = "1.5.0"
+VERSION: str = "1.6.0"
 DEFAULT_EMAIL: str = "@gmail.com"
 popup = None
 
@@ -197,7 +196,7 @@ def on_close():
 	popup = None
 
 # Encrypt json data if its there and remove json file
-encryption.migrate()
+encryption.convert_json()
 # Window Creation
 window = Tk()
 window.title(f"PyVault: Password Manager v{VERSION}")
