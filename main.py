@@ -3,13 +3,16 @@ from tkinter import messagebox
 import time
 import pyperclip
 from cryptography.fernet import InvalidToken
+from requests import RequestException
+
 import encryption
 import secrets
 import string
 import threading
+import pwn_checker
 
-VERSION = "1.4.3"
-DEFAULT_EMAIL = "@gmail.com"
+VERSION: str = "1.5.0"
+DEFAULT_EMAIL: str = "@gmail.com"
 popup = None
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
@@ -43,7 +46,6 @@ def generate_password():
 		t.daemon = True
 		t.start()
 
-
 	def secure_shuffle(items: list) -> None:
 		"""Shuffle a list in place using cryptographically secure random order.(I found this on the internet, I did not figure this one out on my own :)"""
 		for i in range(len(items) - 1, 0, -1):
@@ -59,6 +61,14 @@ def generate_password():
 
 # ---------------------------- SAVE PASSWORD ------------------------------- #
 def save():
+	def search_for_match_wrapper():
+		try:
+			count = pwn_checker.search_for_match_count(password)
+			return count
+		except RequestException:
+			return 0
+
+
 	website = web_entry.get()
 	username = e_u_entry.get()
 	password = pw_entry.get()
@@ -71,25 +81,31 @@ def save():
 	}
 	if len(website) == 0 or len(password) == 0:
 		messagebox.showerror("Oops!", "Please enter all fields")
+		return
+
+	if int(search_for_match_wrapper()) > 0:
+		y_or_n = messagebox.askyesno(title="Password Found!", message="Password was found on an online database! Do you wish to use it anyway? Yes/No")
+		if not y_or_n:
+			return
+
+	try:
+		# Read Old Data
+		data = encryption.load_data()
+	except FileNotFoundError:
+		encryption.save_data(new_data)
+		messagebox.showinfo("WARNING", "Do not delete your key's in your OS's key manager. Your data will be lost!")
+	except InvalidToken:
+		delete_y_n = messagebox.askyesno(title="Vault Can't Be Unlocked",
+										 message="Key's do not match. Delete vault and start fresh? THIS ERASES ALL SAVED PASSWORDS!")
+		if delete_y_n:
+			encryption.delete_vault()
 	else:
-		try:
-			# Read Old Data
-			data = encryption.load_data()
-		except FileNotFoundError:
-			encryption.save_data(new_data)
-			messagebox.showinfo("WARNING", "Do not delete your key's in your OS's key manager. Your data will be lost!")
-		except InvalidToken:
-			delete_y_n = messagebox.askyesno(title="Vault Can't Be Unlocked",
-			                                 message="Key's do not match. Delete vault and start fresh? THIS ERASES ALL SAVED PASSWORDS!")
-			if delete_y_n:
-				encryption.delete_vault()
-		else:
-			# Updating Old Data with New Data
-			data.update(new_data)
-			encryption.save_data(data)
-		finally:
-			web_entry.delete(0, END)
-			pw_entry.delete(0, END)
+		# Updating Old Data with New Data
+		data.update(new_data)
+		encryption.save_data(data)
+	finally:
+		web_entry.delete(0, END)
+		pw_entry.delete(0, END)
 # ---------------------------- Delete Account Data ---------------------------------------- #
 def delete(account):
 	data = encryption.load_data()
@@ -180,8 +196,6 @@ def on_close():
 	popup.destroy()
 	popup = None
 
-
-
 # Encrypt json data if its there and remove json file
 encryption.migrate()
 # Window Creation
@@ -222,7 +236,7 @@ pw_entry.grid(row=3, column=1, sticky=EW)
 generate_button = Button(text="Generate Password", bg="white", fg="black", command=generate_password)
 generate_button.grid(row=3, column=2)
 
-add_button = Button(width=36, text="Add", bg="white", fg="black", command=save)
+add_button = Button(width=36, text="Save", bg="white", fg="black", command=save)
 add_button.grid(row=4, column=1, columnspan=2, sticky=EW)
 
 search_button = Button(text="Search", bg="white", fg="black", command=find_password)

@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.5.0 — 2026-08-08
+
+- **Breach check on save (PwnCheck)**: before saving, passwords are checked
+  against the Have I Been Pwned *Pwned Passwords* database — if the password
+  has appeared in known breaches, a confirmation dialog lets you decide
+  whether to save it anyway
+- Privacy-preserving **k-anonymity** lookup: only the first 5 characters of
+  the password's SHA-1 hash are ever sent; the password itself never leaves
+  your machine
+- Check is **best-effort**: if the service is unreachable (offline/timeout),
+  saving proceeds normally — the vault never depends on the network
+- `requests` added to requirements
+
 ## v1.4.3 — 2026-08-07
 
 - Clicking All Accounts while the window is already open now raises it to
