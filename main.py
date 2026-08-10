@@ -17,7 +17,12 @@ popup = None
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
 # Password Generator Project
-def generate_password():
+def generate_password() -> None:
+	"""Generates a 13-character password, puts it in the entry, and copies it.
+
+	Uses the secrets module rather than random so the output is suitable for
+	real credentials. The clipboard is cleared automatically after 10 seconds.
+	"""
 	pw_entry.delete(0, END)
 
 	password_letters: list = [letter for letter in string.ascii_letters]
@@ -29,15 +34,18 @@ def generate_password():
 		+ [secrets.choice(password_numbers) for _ in range(4)]
 	)
 
-	def clear_clipboard(delay_seconds, pw_text):
-		"""Clears the clipboard"""
+	def clear_clipboard(delay_seconds: int, pw_text: str) -> None:
+		"""Waits, then clears the clipboard only if it still holds pw_text.
+
+		The check means anything the user copied in the meantime is left alone.
+		"""
 		# Wait for default time of 10 seconds
 		time.sleep(delay_seconds)
 		if pyperclip.paste() == pw_text:
 			pyperclip.copy('')
 
-	def secure_copy(text, delay_seconds=10):
-		"""Copy text securely to the clipboard, then uses clear_clipboard() it after 10 seconds"""
+	def secure_copy(text: str, delay_seconds: int = 10) -> None:
+		"""Copies text to the clipboard and schedules clear_clipboard() to wipe it."""
 		pyperclip.copy(text)
 
 
@@ -60,8 +68,14 @@ def generate_password():
 
 
 # ---------------------------- SAVE PASSWORD ------------------------------- #
-def save():
-	def search_for_match_wrapper():
+def save() -> None:
+	"""Validates the form, warns on a breached password, then writes to the vault."""
+	def search_for_match_wrapper() -> int:
+		"""Returns how many times the password appears in known breaches.
+
+		Returns 0 if the breach service cannot be reached, so a network
+		problem never blocks saving.
+		"""
 		try:
 			count = pwn_checker.search_for_match_count(password)
 			return count
@@ -107,14 +121,16 @@ def save():
 		web_entry.delete(0, END)
 		pw_entry.delete(0, END)
 # ---------------------------- Delete Account Data ---------------------------------------- #
-def delete(account):
+def delete(account: str) -> None:
+	"""Removes one account from the vault by its website key."""
 	data = encryption.load_data()
 	data.pop(account, None)
 	encryption.save_data(data)
 
 
 # ---------------------------- Find Password --------------------------#
-def find_password():
+def find_password() -> None:
+	"""Looks up the website in the entry field and shows its stored credentials."""
 	website = web_entry.get()
 	try:
 		data = encryption.load_data()
@@ -136,7 +152,11 @@ def find_password():
 			messagebox.showinfo(title="Oops", message="Account info not found!")
 
 #---------------------- All accounts --------------------------#
-def find_all_accounts():
+def find_all_accounts() -> None:
+	"""Opens the All Accounts window listing every saved website and email.
+
+	Passwords are deliberately not shown here - use Search to reveal one.
+	"""
 	try:
 		data = encryption.load_data()
 	except FileNotFoundError:
@@ -152,7 +172,8 @@ def find_all_accounts():
 			websites = list(data.keys())
 
 			# Creating Popup Window
-			def open_pop_up():
+			def open_pop_up() -> None:
+				"""Creates the All Accounts window, or raises it if already open."""
 				global popup
 				if popup is None:
 					popup = Toplevel(window)
@@ -165,7 +186,8 @@ def find_all_accounts():
 
 					text_box.grid(row=0, column=0)
 
-					def delete_selected():
+					def delete_selected() -> None:
+						"""Deletes the highlighted account after confirmation."""
 						selection = text_box.curselection()
 						if selection:
 							index = selection[0]
@@ -191,7 +213,8 @@ def find_all_accounts():
 # ---------------------------- UI SETUP ----------------------------- #
 # Popup Management
 
-def on_close():
+def on_close() -> None:
+	"""Destroys the All Accounts window and resets the flag so it can reopen."""
 	global popup
 	popup.destroy()
 	popup = None

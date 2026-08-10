@@ -1,3 +1,7 @@
+class KeyNotFoundError(Exception):
+	"""Raised when an operation needs the vault key but the keyring has none."""
+	pass
+
 import keyring
 import keyring.errors
 import json
@@ -13,34 +17,48 @@ HOME =  Path.home()
 VAULT_DIR = HOME.joinpath("./PyVault_Vault")
 DATA_FILE = VAULT_DIR.joinpath("./data.enc")
 
-def get_key():
-	"""Gets key from keyring, returns key, makes one if there isn't one"""
-	saved_key = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
+def get_key() -> bytes:
+	"""Gets the Fernet key from the OS keyring, creating one if none exists.
+
+	Returns the key as bytes, ready to hand to Fernet(). The keyring stores
+	it as a string, so it is decoded on the way in and encoded on the way out.
+	"""
+	saved_key: str | None = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
 	if saved_key is None:
-		key = Fernet.generate_key()
+		key: bytes = Fernet.generate_key()
 		keyring.set_password(KEYRING_SERVICE, KEYRING_USER, key.decode("utf-8"))
 		return key
 	else:
 		return saved_key.encode("utf-8")
-def save_data(data):
-	text = json.dumps(data).encode("utf-8")
+def save_data(data: dict) -> None:
+	"""Encrypts the given dict and writes it to the vault file, replacing it."""
+	text: bytes = json.dumps(data).encode("utf-8")
 	f = Fernet(get_key())
-	token = f.encrypt(text)
+	token: bytes = f.encrypt(text)
 	with open(DATA_FILE, "wb") as file:
 		file.write(token)
 
 
-def load_data():
+def load_data() -> dict:
+	"""Reads and decrypts the vault file, returning its contents as a dict.
+
+	Raises FileNotFoundError if no vault exists yet, and InvalidToken if the
+	file cannot be decrypted with the current key.
+	"""
 	with open(DATA_FILE, "rb") as token_file:
-		token = token_file.read()
+		token: bytes = token_file.read()
 		f = Fernet(get_key())
 		token = f.decrypt(token)
-		token_string = token.decode("utf-8")
-		token_dict = json.loads(token_string)
+		token_string: str = token.decode("utf-8")
+		token_dict: dict = json.loads(token_string)
 		return token_dict
 
 
-def convert_json():
+def convert_json() -> None:
+	"""Migrates a pre-v1.1 plaintext data.json into the encrypted vault.
+
+	Does nothing if no data.json is present, which is the normal case.
+	"""
 	if not os.path.exists(OLD_DATA_FILE_JSON):
 		return
 	else:
@@ -49,7 +67,12 @@ def convert_json():
 			save_data(data)
 		os.remove(OLD_DATA_FILE_JSON)
 
-def migrate_data_to_home():
+def migrate_data_to_home() -> None:
+	"""Moves a pre-v1.6 vault from beside the program into the home directory.
+
+	Also creates the vault directory. Never overwrites a vault that already
+	exists in the new location, and does nothing if there is nothing to move.
+	"""
 	if DATA_FILE.is_file():
 		return
 	if not OLD_DATA_FILE.is_file():
@@ -60,12 +83,29 @@ def migrate_data_to_home():
 		shutil.move(OLD_DATA_FILE, DATA_FILE)
 
 
+def export_key(destination: str | Path) -> None:
+	"""Writes the vault key to destination as plain text.
+
+	The resulting file can decrypt the vault, so it is as sensitive as the
+	passwords themselves. Raises KeyNotFoundError if the keyring has no key.
+	"""
+	token: str | None = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
+	if token is None:
+		raise KeyNotFoundError("No key found for user")
+	Path(destination).write_text(token, encoding="utf-8")
 
 
 
 
 
-def delete_vault():
+
+
+def delete_vault() -> None:
+	"""Deletes the vault file and its key from the keyring.
+
+	Tolerates either being absent already. Removing the key is what makes a
+	reset genuinely fresh: the next save mints a new one.
+	"""
 	try:
 		os.remove(DATA_FILE)
 	except FileNotFoundError:
