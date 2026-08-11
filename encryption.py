@@ -1,7 +1,12 @@
+from cryptography.fernet import Fernet, InvalidToken
+
+
 class KeyNotFoundError(Exception):
 	"""Raised when an operation needs the vault key but the keyring has none."""
 	pass
-
+class KeyNotValidError(Exception):
+	"""Raised when there is an invalid file being referenced as Vault key"""
+	pass
 import keyring
 import keyring.errors
 import json
@@ -37,7 +42,6 @@ def save_data(data: dict) -> None:
 	token: bytes = f.encrypt(text)
 	with open(DATA_FILE, "wb") as file:
 		file.write(token)
-
 
 def load_data() -> dict:
 	"""Reads and decrypts the vault file, returning its contents as a dict.
@@ -82,7 +86,6 @@ def migrate_data_to_home() -> None:
 		Path.mkdir(VAULT_DIR, exist_ok=True, parents=True)
 		shutil.move(OLD_DATA_FILE, DATA_FILE)
 
-
 def export_key(destination: str | Path) -> None:
 	"""Writes the vault key to destination as plain text.
 
@@ -94,11 +97,18 @@ def export_key(destination: str | Path) -> None:
 		raise KeyNotFoundError("No key found for user")
 	Path(destination).write_text(token, encoding="utf-8")
 
+def import_key(destination: str | Path) -> None:
+	"""
+	Takes a destination path as input for Key location, then sets it as the new key
+	:param destination:
+	"""
+	token: bytes = Path(destination).read_text(encoding="utf-8").strip().encode("utf-8")
+	try:
+		Fernet(token)
+	except ValueError as err:
+		raise KeyNotValidError("This file is not a key, or your key is corrupted") from err
 
-
-
-
-
+	keyring.set_password(KEYRING_SERVICE, KEYRING_USER, token.decode("utf-8"))
 
 def delete_vault() -> None:
 	"""Deletes the vault file and its key from the keyring.
@@ -115,6 +125,18 @@ def delete_vault() -> None:
 	except keyring.errors.PasswordDeleteError:
 		pass
 
+def does_vault_exist():
+	DATA_FILE.is_file()
+
+def does_key_decrypt_vault(token):
+	try:
+		with open(DATA_FILE, "rb") as vault_file:
+			vault: bytes = vault_file.read()
+			f = Fernet(token)
+			f.decrypt(vault)
+			return True
+	except InvalidToken:
+		return False
 migrate_data_to_home()
 
 

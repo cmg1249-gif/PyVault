@@ -10,6 +10,8 @@ from requests import RequestException
 from tkinter import *
 from tkinter import messagebox
 from pathlib import Path
+from tkinter import filedialog
+
 VERSION: str = "1.6.1"
 DEFAULT_EMAIL: str = "@gmail.com"
 LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
@@ -127,7 +129,6 @@ def delete(account: str) -> None:
 	data.pop(account, None)
 	encryption.save_data(data)
 
-
 # ---------------------------- Find Password --------------------------#
 def find_password() -> None:
 	"""Looks up the website in the entry field and shows its stored credentials."""
@@ -211,6 +212,29 @@ def find_all_accounts() -> None:
 		except KeyError:
 			messagebox.showinfo(title="Oops", message="Email entry corrupted")
 # ---------------------------- UI SETUP ----------------------------- #
+# Export/Import Key GUI file dialog building
+def export_key_wrapper():
+	"""A wrapper for the export key functionality."""
+	user_chosen_path = filedialog.asksaveasfilename(
+		defaultextension="*.key",
+		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
+		initialfile="pyvault_backup.key",
+
+	)
+	try:
+		encryption.export_key(user_chosen_path)
+		messagebox.showinfo(title="Success!", message=f"Your file has been saved to {user_chosen_path}")
+	except encryption.KeyNotFoundError:
+		messagebox.showerror(title="Oops", message="No key file found!")
+
+def import_key_wrapper():
+	"""A wrapper for the import key functionality."""
+	user_chosen_path = filedialog.askopenfilename(
+		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
+		title="Import Key Backup File",
+	)
+	encryption.import_key(user_chosen_path)
+
 # Popup Management
 
 def on_close() -> None:
@@ -267,6 +291,15 @@ search_button.grid(row=1, column=2, sticky=EW)
 
 all_accounts_button = Button(width=16, text="All Accounts", bg="white", fg="black", command=find_all_accounts)
 all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
+
+# File Menu Creation
+menu_bar = Menu(window)                                      # Parent: window
+sub_menu = Menu(menu_bar, tearoff=0)                         # Parent: menu_bar
+sub_menu.add_command(label="Export Vault Key", command=export_key_wrapper) # Creating Export Key button
+sub_menu.add_command(label="Import Vault Key", command=import_key_wrapper)               # Creating Import Key button
+sub_menu.add_command(label="Exit", command=window.destroy)   # Command and label for exit
+menu_bar.add_cascade(label="File", menu=sub_menu)			 # Make a cascading menu
+window.config(menu=menu_bar)								 # put the menu_bar together on the window
 
 
 window.mainloop()
