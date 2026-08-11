@@ -2,3 +2,6 @@ __pycache__/
 .idea/
 data.enc
 *.pyc
+
+# Written by run.bat once setup has succeeded on this machine.
+.setup_complete
