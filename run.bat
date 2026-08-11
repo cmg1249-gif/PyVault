@@ -83,8 +83,12 @@ if errorlevel 1 (
 
 echo.
 echo  Step 2 of 2: Setting up your Desktop shortcut...
-if exist "%USERPROFILE%\Desktop\PyVault.lnk" (
-    echo  You already have one - leaving it alone.
+REM  Ask the script itself, because a shortcut file existing is not the same
+REM  as it working - after re-installing to a new folder the old one is still
+REM  sat on the Desktop pointing at a folder that has gone.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%APPDIR%make_shortcut.ps1" -CheckOnly
+if not errorlevel 1 (
+    echo  You already have one pointing here - leaving it alone.
 ) else (
     REM  /t 15 /d Y means an unattended run carries on by itself.
     choice /c YN /n /t 15 /d Y /m "  Put a PyVault shortcut on your Desktop? [Y/n] "

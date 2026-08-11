@@ -10,7 +10,12 @@
 
 # -Quiet is used when run.bat calls this during setup: no banner, no
 # "press Enter", because run.bat is already talking to the user.
-param([switch]$Quiet)
+#
+# -CheckOnly changes nothing and just reports through the exit code:
+#   0 = a shortcut already points at THIS folder, nothing to do
+#   1 = missing, or pointing at a folder that has moved or been deleted
+# run.bat uses it to decide whether it needs to ask about the shortcut.
+param([switch]$Quiet, [switch]$CheckOnly)
 
 $ErrorActionPreference = 'Stop'
 
@@ -30,7 +35,24 @@ if (-not (Test-Path $target)) {
     exit 1
 }
 
-$shell    = New-Object -ComObject WScript.Shell
+$shell = New-Object -ComObject WScript.Shell
+
+# An existing shortcut is only good if it still points at this copy of
+# PyVault. Re-installing into a new folder leaves the old shortcut behind
+# aiming at a folder that is no longer there, and that dead shortcut must
+# be repointed rather than treated as "already done".
+$pointsHere = $false
+if (Test-Path $linkPath) {
+    try {
+        $existing = $shell.CreateShortcut($linkPath)
+        $pointsHere = ($existing.TargetPath -ieq $target)
+    } catch {
+        $pointsHere = $false
+    }
+}
+
+if ($CheckOnly) { if ($pointsHere) { exit 0 } else { exit 1 } }
+
 $shortcut = $shell.CreateShortcut($linkPath)
 $shortcut.TargetPath       = $target
 $shortcut.WorkingDirectory = $appDir
@@ -54,6 +76,10 @@ try { & ie4uinit.exe -show } catch { }
 
 if (-not $Quiet) {
     Write-Host ""
-    Write-Host "Done - 'PyVault' is on your Desktop. Double-click it to start."
+    if ($pointsHere) {
+        Write-Host "Done - your 'PyVault' Desktop shortcut is up to date."
+    } else {
+        Write-Host "Done - 'PyVault' is on your Desktop. Double-click it to start."
+    }
     Read-Host "Press Enter to close"
 }
