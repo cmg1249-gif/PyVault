@@ -5,14 +5,14 @@ import secrets
 import string
 import threading
 import pwn_checker
-from cryptography.fernet import InvalidToken
+from cryptography.fernet import InvalidToken, Fernet
 from requests import RequestException
 from tkinter import *
 from tkinter import messagebox
 from pathlib import Path
 from tkinter import filedialog
 
-VERSION: str = "1.6.1"
+VERSION: str = "1.7.0"
 DEFAULT_EMAIL: str = "@gmail.com"
 LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
 popup = None
@@ -213,26 +213,62 @@ def find_all_accounts() -> None:
 			messagebox.showinfo(title="Oops", message="Email entry corrupted")
 # ---------------------------- UI SETUP ----------------------------- #
 # Export/Import Key GUI file dialog building
-def export_key_wrapper():
-	"""A wrapper for the export key functionality."""
+def export_key_wrapper() -> None:
+	"""Asks where to save a key backup, then writes the vault key there.
+
+	Does nothing if the user cancels the dialog. The exported file can
+	decrypt the vault, so it should be stored somewhere trusted.
+	"""
 	user_chosen_path = filedialog.asksaveasfilename(
 		defaultextension="*.key",
 		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
 		initialfile="pyvault_backup.key",
 
 	)
+	if not user_chosen_path or user_chosen_path == "":
+		return
 	try:
 		encryption.export_key(user_chosen_path)
 		messagebox.showinfo(title="Success!", message=f"Your file has been saved to {user_chosen_path}")
 	except encryption.KeyNotFoundError:
-		messagebox.showerror(title="Oops", message="No key file found!")
+		messagebox.showerror(title="KeyNotFound Error", message="No key file found!")
 
-def import_key_wrapper():
-	"""A wrapper for the import key functionality."""
+def import_key_wrapper() -> None:
+	"""Asks for a key backup file, checks it against the vault, then imports it.
+
+	Guards in order: user cancelled, file is not a valid key, and key does
+	not open the existing vault (warns that saved passwords become
+	unreadable and lets the user back out). Only after all checks pass is
+	the key committed to the keyring via encryption.import_key().
+	"""
 	user_chosen_path = filedialog.askopenfilename(
 		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
 		title="Import Key Backup File",
 	)
+	if not user_chosen_path or user_chosen_path == "":
+		return
+	token: bytes = Path(user_chosen_path).read_text(encoding="utf-8").strip().encode("utf-8")
+	try:
+		Fernet(token)
+	except ValueError:
+		messagebox.showinfo(title="Value Error", message="Not a valid vault key!")
+		return
+	if encryption.DATA_FILE.is_file():
+		if not encryption.does_key_decrypt_vault(token):
+			y_or_n = messagebox.askyesno(title="Key does not decrypt vault",message="key doesn't match your vault — saved passwords will become unreadable. Continue?")
+			if not y_or_n:
+				return
+	try:
+		encryption.import_key(user_chosen_path)
+	except encryption.KeyNotValidError:
+		messagebox.showerror(title="Key Error", message="This file is not a key or it is corrupted!")
+		return
+	except FileNotFoundError:
+		messagebox.showerror(title="File Not Found", message="File not found!Either missing or moved!")
+		return
+	else:
+		messagebox.showinfo(title="Success!", message="File successfully imported!")
+
 	encryption.import_key(user_chosen_path)
 
 # Popup Management

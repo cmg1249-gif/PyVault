@@ -1,4 +1,4 @@
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import InvalidToken
 
 
 class KeyNotFoundError(Exception):
@@ -97,12 +97,15 @@ def export_key(destination: str | Path) -> None:
 		raise KeyNotFoundError("No key found for user")
 	Path(destination).write_text(token, encoding="utf-8")
 
-def import_key(destination: str | Path) -> None:
+def import_key(source: str | Path) -> None:
+	"""Reads a key backup file and stores it in the OS keyring as the vault key.
+
+	The file is validated as a well-formed Fernet key before anything is
+	written, so a failed import leaves the keyring exactly as it was.
+	Raises KeyNotValidError if the file is not a key, and FileNotFoundError
+	if there is nothing at source.
 	"""
-	Takes a destination path as input for Key location, then sets it as the new key
-	:param destination:
-	"""
-	token: bytes = Path(destination).read_text(encoding="utf-8").strip().encode("utf-8")
+	token: bytes = Path(source).read_text(encoding="utf-8").strip().encode("utf-8")
 	try:
 		Fernet(token)
 	except ValueError as err:
@@ -125,18 +128,25 @@ def delete_vault() -> None:
 	except keyring.errors.PasswordDeleteError:
 		pass
 
-def does_vault_exist():
-	DATA_FILE.is_file()
 
-def does_key_decrypt_vault(token):
+
+def does_key_decrypt_vault(token: bytes) -> bool:
+	"""Trial-decrypts the vault with a candidate key, without changing anything.
+
+	Returns True if the key opens the current vault. A wrong key or a
+	malformed one both return False - either way it does not open the vault.
+	Raises FileNotFoundError if there is no vault; callers should check
+	DATA_FILE.is_file() first.
+	"""
 	try:
 		with open(DATA_FILE, "rb") as vault_file:
 			vault: bytes = vault_file.read()
 			f = Fernet(token)
 			f.decrypt(vault)
 			return True
-	except InvalidToken:
+	except (InvalidToken, ValueError):
 		return False
+
 migrate_data_to_home()
 
 

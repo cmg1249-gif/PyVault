@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.7.0 — 2026-08-11
+
+- **Key backup and restore**: new File menu with *Export Vault Key* and
+  *Import Vault Key*. Export writes the vault key to a file you choose;
+  import restores it — reinstalling Windows or moving to a new machine no
+  longer means losing your vault
+- **Import is validated before it commits**: the file is checked to be a
+  well-formed key first, so a failed import leaves your keyring untouched
+- **Mismatch warning**: importing a key that does not open your current
+  vault warns that saved passwords would become unreadable and lets you
+  back out. A key that matches (or a fresh install) imports silently
+- Cancelling the export or import file dialog now does nothing instead of
+  erroring
+
 ## v1.6.1 — 2026-08-09
 
 - **Bug fix**: the logo is now loaded from a path anchored to the program
