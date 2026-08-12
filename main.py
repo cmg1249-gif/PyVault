@@ -12,6 +12,8 @@ from tkinter import messagebox
 from pathlib import Path
 from tkinter import filedialog
 
+from encryption import DATA_FILE
+
 VERSION: str = "1.7.0"
 DEFAULT_EMAIL: str = "@gmail.com"
 LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
@@ -83,7 +85,6 @@ def save() -> None:
 			return count
 		except RequestException:
 			return 0
-
 
 	website = web_entry.get()
 	username = e_u_entry.get()
@@ -213,6 +214,62 @@ def find_all_accounts() -> None:
 			messagebox.showinfo(title="Oops", message="Email entry corrupted")
 # ---------------------------- UI SETUP ----------------------------- #
 # Export/Import Key GUI file dialog building
+def export_vault_wrapper() -> None:
+	"""Asks where to save a vault backup, then copies the vault there.
+
+	The backup is ciphertext and useless without the key, so on its own it
+	is safe to store almost anywhere - but restoring also needs a key backup
+	(Export Vault Key). Cancelling the dialog does nothing; a missing vault
+	(VaultNotFoundError) is reported to the user.
+	"""
+	user_chosen_path = filedialog.asksaveasfilename(
+		defaultextension=".enc",
+		filetypes=[("Encrypted File", "*.enc"), ("All Files", "*.*")],
+		initialfile="pyvault_vault_backup.enc",
+	)
+	if not user_chosen_path or user_chosen_path == "":
+		return
+	try:
+		encryption.export_vault(user_chosen_path)
+		messagebox.showinfo(title="Success!", message=f"Your file has been exported to: {user_chosen_path}!")
+	except encryption.VaultNotFoundError:
+		messagebox.showerror(title="Error", message="Vault Can't Be Found")
+
+def import_vault_wrapper() -> None:
+	"""Asks for a vault backup file, confirms, checks the key, then imports it.
+
+	Guards in order: user cancelled; an existing vault would be overwritten
+	(the current vault is copied to data.enc.bak first, so this is
+	recoverable); and the current key does not open the chosen vault. A key
+	that does not decrypt it warns and lets the user back out; no key at all
+	is allowed through, since a restore may bring the vault before its key.
+	Only after the guards pass is the vault committed via
+	encryption.import_vault().
+	"""
+	user_chosen_path = filedialog.askopenfilename(
+		defaultextension=".enc",
+		filetypes=[("Encrypted File", "*.enc"), ("All Files", "*.*")],
+		initialfile="pyvault_vault.enc",
+	)
+	if not user_chosen_path or user_chosen_path == "":
+		return
+	if DATA_FILE.is_file():
+		y_or_n =messagebox.askyesno(title="Old Vault", message="Old Vault file already exists! Overwrite?")
+		if y_or_n is None or y_or_n is False:
+			return
+	try:
+		pairs = encryption.does_vault_go_with_key(user_chosen_path)
+	except encryption.KeyNotFoundError:
+		messagebox.showinfo(title="No Key", message="No key found — import your key next or the vault won't open.")
+		pairs = True
+	if not pairs:
+		if not messagebox.askyesno(title="Error", message="Wrong Key for this vault, continue?"):
+			return
+	try:
+		encryption.import_vault(user_chosen_path)
+		messagebox.showinfo(title="Success!", message=f"Your file has been imported to: {user_chosen_path}!")
+	except encryption.VaultNotFoundError:
+		messagebox.showerror(title="Error", message="Vault Can't Be Found")
 def export_key_wrapper() -> None:
 	"""Asks where to save a key backup, then writes the vault key there.
 
@@ -220,7 +277,7 @@ def export_key_wrapper() -> None:
 	decrypt the vault, so it should be stored somewhere trusted.
 	"""
 	user_chosen_path = filedialog.asksaveasfilename(
-		defaultextension="*.key",
+		defaultextension=".key",
 		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
 		initialfile="pyvault_backup.key",
 
@@ -332,9 +389,11 @@ all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
 menu_bar = Menu(window)                                      # Parent: window
 sub_menu = Menu(menu_bar, tearoff=0)                         # Parent: menu_bar
 sub_menu.add_command(label="Export Vault Key", command=export_key_wrapper) # Creating Export Key button
-sub_menu.add_command(label="Import Vault Key", command=import_key_wrapper)               # Creating Import Key button
-sub_menu.add_command(label="Exit", command=window.destroy)   # Command and label for exit
-menu_bar.add_cascade(label="File", menu=sub_menu)			 # Make a cascading menu
+sub_menu.add_command(label="Import Vault Key", command=import_key_wrapper)  # Creating Import Key button
+sub_menu.add_command(label="Export Vault", command=export_vault_wrapper)  # Creating Export Vault button
+sub_menu.add_command(label="Import Vault", command=import_vault_wrapper)  # Creating Import Vault button
+sub_menu.add_command(label="Exit", command=window.destroy)                  # Command and label for exit
+menu_bar.add_cascade(label="Options", menu=sub_menu)			 # Make a cascading menu
 window.config(menu=menu_bar)								 # put the menu_bar together on the window
 
 
