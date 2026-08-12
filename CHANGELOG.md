@@ -15,6 +15,16 @@
   vault
 - Note: the refresh rebuilds the window, so it returns to its default screen
   position and loses any scroll position
+- **Fix (Windows launcher)**: `run.bat` decided whether Python was installed
+  with `where python`. Windows ships "app execution alias" stubs named
+  `python.exe` on machines with no Python at all — they exist only to open the
+  Microsoft Store — so the check passed on exactly the machines it was meant
+  to catch. The setup instructions never appeared, and the user got
+  "check your internet connection" instead. The same stubs can be left
+  dangling by a Store update, pointing at a package version that is gone.
+  The launcher now runs Python rather than looking for the file
+- **Install instructions now point at the Microsoft Store** as the easy path
+  for Windows, with python.org kept as the alternative
 
 ## v1.8.0 — 2026-08-11
 

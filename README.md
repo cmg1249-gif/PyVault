@@ -60,10 +60,19 @@ will show you exactly how to get it. Everything else installs automatically.
 
 ### Windows
 
-1. Download this folder.
-2. Double-click **`run.bat`**.
-3. The first launch installs what it needs and offers to put a **PyVault
+1. **Install Python from the Microsoft Store** — click Start, type
+   *Microsoft Store*, press Enter, search for **Python**, and install the
+   newest version published by the *Python Software Foundation*. This is the
+   easiest route: it sets everything up for you, with no PATH checkbox to
+   remember. (Prefer python.org? That works too — just tick **Add Python to
+   PATH** on the first install screen.)
+2. Download this folder.
+3. Double-click **`run.bat`**.
+4. The first launch installs what it needs and offers to put a **PyVault
    shortcut on your Desktop**. Follow anything it says in the black window.
+
+If Python is missing, `run.bat` stops and walks you through installing it —
+it won't leave you guessing.
 
 After that first run, open PyVault from the Desktop shortcut. It starts
 straight into the app with **no black window at all** — the setup steps only

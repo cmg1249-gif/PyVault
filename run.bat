@@ -41,21 +41,33 @@ echo.
 echo  Setting up PyVault. This only happens once.
 echo.
 
-where python >nul 2>nul
+REM  Actually RUN python rather than just looking for the file. Windows
+REM  ships "app execution alias" stubs at
+REM    %LOCALAPPDATA%\Microsoft\WindowsApps\python.exe
+REM  on machines with no Python at all - they exist only to open the
+REM  Microsoft Store. "where python" finds those and reports success, so
+REM  it cannot tell "installed" from "not installed". The same stubs can
+REM  also be left dangling after a Store update, pointing at a package
+REM  version that is no longer there. Running python is the only check
+REM  that catches every case.
+python -c "import sys" >nul 2>nul
 if errorlevel 1 (
     echo ============================================================
     echo  Python is not installed on this computer ^(it's required^).
     echo.
     echo  How to fix it - step by step:
-    echo    1. Open this link in your web browser:
+    echo    1. Open the Microsoft Store
+    echo       ^(click Start, type "Microsoft Store", press Enter^).
+    echo    2. Search for:  Python
+    echo    3. Pick the newest version published by the
+    echo       "Python Software Foundation" and click Get / Install.
+    echo    4. Wait for it to finish installing.
+    echo    5. Close this window and double-click run.bat again.
+    echo.
+    echo  No Microsoft Store? You can install from python.org instead:
     echo         https://www.python.org/downloads/
-    echo    2. Click the big yellow "Download Python" button.
-    echo    3. Open the file that downloads.
-    echo    4. IMPORTANT: on the first install screen, tick the
-    echo       checkbox that says "Add Python to PATH"
-    echo       ^(it's near the bottom of the window^).
-    echo    5. Click "Install Now" and wait for it to finish.
-    echo    6. Close this window and double-click run.bat again.
+    echo    On the FIRST install screen, tick the checkbox that says
+    echo    "Add Python to PATH" ^(near the bottom^), then Install Now.
     echo ============================================================
     pause
     exit /b 1
