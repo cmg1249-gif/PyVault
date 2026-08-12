@@ -100,11 +100,11 @@ def save() -> None:
 		messagebox.showerror("Oops!", "Please enter all fields")
 		return
 
+
 	if int(search_for_match_wrapper()) > 0:
 		y_or_n = messagebox.askyesno(title="Password Found!", message="Password was found on an online database! Do you wish to use it anyway? Yes/No")
 		if not y_or_n:
 			return
-
 	try:
 		# Read Old Data
 		data = encryption.load_data()
@@ -117,9 +117,15 @@ def save() -> None:
 		if delete_y_n:
 			encryption.delete_vault()
 	else:
+		if website in data:
+			y_or_n = messagebox.askyesno(title="Overwrite Warning",message="You already have an account saved for this website! Do you want to overwrite it with this new data?")
+			if not y_or_n:
+				messagebox.showinfo(title="Alert", message="Nothing Happened\nYour data new data was not saved,Your old data was not overwritten.")
+				return
 		# Updating Old Data with New Data
 		data.update(new_data)
 		encryption.save_data(data)
+		messagebox.showinfo(title="Success!", message="Successfully saved new account data!")
 	finally:
 		web_entry.delete(0, END)
 		pw_entry.delete(0, END)
@@ -157,7 +163,9 @@ def find_password() -> None:
 def find_all_accounts() -> None:
 	"""Opens the All Accounts window listing every saved website and email.
 
-	Passwords are deliberately not shown here - use Search to reveal one.
+	Rows show "website - email" only. Double-clicking a row reveals that
+	account's password in a dialog; the Search button on the main window
+	does the same thing by typed website name.
 	"""
 	try:
 		data = encryption.load_data()
@@ -170,6 +178,12 @@ def find_all_accounts() -> None:
 			encryption.delete_vault()
 	else:
 		try:
+			# Two parallel structures, both in dict insertion order, so a
+			# listbox row number indexes into either one:
+			#   sites_and_user_name[i] -> the text the user sees in row i
+			#   websites[i]            -> the vault key for row i
+			# They MUST be kept in step. delete_selected() does this by
+			# popping websites at the same index it deletes the row.
 			sites_and_user_name = [f"{website} - {details['email']}" for website, details in data.items()]
 			websites = list(data.keys())
 
@@ -183,10 +197,37 @@ def find_all_accounts() -> None:
 					popup.minsize()
 					popup.protocol("WM_DELETE_WINDOW", on_close)
 					text_box = Listbox(popup, bg="white", fg="black", height=15, width=50)
+					def double_click_listener(event) -> None:
+						"""Reveals the credentials for the double-clicked row.
+
+						Bound to <Double-Button-1> below, so Tk calls this with an
+						Event; `event.y` is the click's pixel offset inside the
+						listbox. Unlike delete_selected() (a Button command with no
+						mouse info), this can resolve the row from the click itself.
+						"""
+						# Pixel -> row number. nearest() CLAMPS: a click in the blank
+						# space under the last row returns the last row's index, so
+						# the range check below is what stops a stray double-click in
+						# dead space from revealing the bottom account.
+						index = text_box.nearest(event.y)
+						if index < 0 or index >= len(websites):
+							return
+
+						# Row number -> vault key -> credentials. data has no
+						# positions to index by, so websites is what converts the
+						# row number into a key. Use websites (not a fresh
+						# list(data.keys())) - it is the copy delete_selected keeps
+						# in step with the rows, so it stays correct after a delete.
+						website = websites[index]
+						email = data[website]["email"]
+						password = data[website]["password"]
+
+						messagebox.showinfo(title=f"{website}", message=f"Email :{email}\nPassword :{password} ")
 					for row in sites_and_user_name:
 						text_box.insert(END, row)
-
+					text_box.bind("<Double-Button-1>", double_click_listener)
 					text_box.grid(row=0, column=0)
+
 
 					def delete_selected() -> None:
 						"""Deletes the highlighted account after confirmation."""
