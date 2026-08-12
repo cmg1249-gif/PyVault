@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.9.0 — 2026-08-12
+
+- **Double-click to reveal a password**: double-clicking a row in the *All
+  Accounts* window now shows that account's email and password, instead of
+  making you close the window and retype the site name into Search
+- **Overwrite warning on save**: saving a website that already has an entry
+  now asks before replacing it. Previously the new details silently
+  overwrote the old ones, with no way to tell it had happened — and no way
+  to get the old password back
+- **All Accounts refreshes after a save**: with the window left open, saving
+  a password used to leave the list showing the old contents until you closed
+  and reopened it. It now rebuilds itself, so what's on screen matches the
+  vault
+- Note: the refresh rebuilds the window, so it returns to its default screen
+  position and loses any scroll position
+
 ## v1.8.0 — 2026-08-11
 
 - **Vault backup and restore**: new *Options* menu items *Export Vault* and

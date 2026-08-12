@@ -34,11 +34,14 @@ breach checking, key and vault backup, and an account browser.
   itself never leaves your machine. If the service is unreachable, saving
   proceeds normally
 - **Add** a website / email / password combo to the encrypted vault
+- **Overwrite warning** — saving a website you already have an entry for asks
+  before replacing it, so an existing password is never silently clobbered
 - **Search** for a saved website and pop up its email and password
-- **All Accounts** view — every saved website and email in one window
-  (passwords stay hidden; search to reveal one). Opens as a single window:
-  clicking the button again brings it to the front instead of spawning
-  duplicates
+- **All Accounts** view — every saved website and email in one window.
+  **Double-click any row** to reveal that account's password without retyping
+  the website into Search. Opens as a single window: clicking the button again
+  brings it to the front instead of spawning duplicates, and the list refreshes
+  itself after you save so it never shows stale entries
 - **Delete accounts** from the All Accounts window — select an entry,
   confirm, and it's removed from the encrypted vault
 - **Key backup and restore** — *Options → Export Vault Key* writes your
@@ -139,7 +142,7 @@ Import the right key rather than resetting the vault.
 
 ## Version history
 
-See [CHANGELOG.md](CHANGELOG.md). Current release: **v1.8.0**.
+See [CHANGELOG.md](CHANGELOG.md). Current release: **v1.9.0**.
 
 ## License
 

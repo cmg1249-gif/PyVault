@@ -14,7 +14,7 @@ from tkinter import filedialog
 
 from encryption import DATA_FILE
 
-VERSION: str = "1.8.0"
+VERSION: str = "1.9.0"
 DEFAULT_EMAIL: str = "@gmail.com"
 LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
 popup = None
@@ -85,16 +85,14 @@ def save() -> None:
 			return count
 		except RequestException:
 			return 0
-
+		
 	website = web_entry.get()
 	username = e_u_entry.get()
 	password = pw_entry.get()
 	new_data = {website: {
 		"email": username,
 		"password": password,
-
 	}
-
 	}
 	if len(website) == 0 or len(password) == 0:
 		messagebox.showerror("Oops!", "Please enter all fields")
@@ -126,6 +124,9 @@ def save() -> None:
 		data.update(new_data)
 		encryption.save_data(data)
 		messagebox.showinfo(title="Success!", message="Successfully saved new account data!")
+		if popup is not None:
+			on_close()
+			find_all_accounts()
 	finally:
 		web_entry.delete(0, END)
 		pw_entry.delete(0, END)
@@ -167,6 +168,7 @@ def find_all_accounts() -> None:
 	account's password in a dialog; the Search button on the main window
 	does the same thing by typed website name.
 	"""
+
 	try:
 		data = encryption.load_data()
 	except FileNotFoundError:
