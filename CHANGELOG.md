@@ -1,5 +1,42 @@
 # Changelog
 
+## v1.8.0 — 2026-08-11
+
+- **Vault backup and restore**: new *Options* menu items *Export Vault* and
+  *Import Vault*, alongside the existing key backup. Export copies your
+  encrypted vault to a file you choose; Import replaces the vault with a
+  backup you pick. The two backups (key and vault) stay separate on purpose —
+  a vault file is ciphertext and safe to store almost anywhere; the key is the
+  sensitive half
+- **Import backs up the old vault first**: before overwriting, the current
+  `data.enc` is copied to `data.enc.bak`, so a mistaken import is always
+  recoverable
+- **Key-check on vault import**: if your current key does not open the vault
+  you are importing, PyVault warns and lets you back out. If there is no key at
+  all it tells you to import your key next — a restore may legitimately bring
+  the vault across before its key, so this is allowed rather than blocked
+- **Fix**: the key export dialog used `defaultextension="*.key"`, which could
+  append a literal `*` to a typed filename; now `.key`
+- **App icon**: PyVault now has a proper Windows icon, built from the project
+  logo at every size from 16 to 256 pixels. The small sizes drop the "PyVault"
+  ribbon and zoom the snake-and-lock emblem, which stays readable in the
+  taskbar where the ribbon text would not
+- **Desktop shortcut**: the first Windows launch offers to create one, and
+  `make_shortcut.ps1` can create or repair it at any time. It resolves paths
+  relative to itself, so PyVault works from whatever folder it's unpacked into
+- **No console window after setup** (Windows): the launcher now starts the app
+  with `pythonw` and exits immediately, instead of leaving a black window open
+  for as long as PyVault is running. Setup only reappears if `requirements.txt`
+  changes or an expected package stops importing
+- **Fix**: setup treated any `PyVault.lnk` on the Desktop as a working
+  shortcut. Installing into a new folder left the previous shortcut pointing
+  at a folder that no longer existed, and setup skipped it as "already done" —
+  leaving a shortcut that did nothing and no way to fix it short of deleting
+  the marker file by hand. The existing shortcut's target is now checked, and
+  repointed when it doesn't match
+- Mac and Linux (`run.sh`) are unchanged: the terminal still stays open while
+  the app runs, and there is no shortcut
+
 ## v1.7.0 — 2026-08-11
 
 - **Key backup and restore**: new File menu with *Export Vault Key* and

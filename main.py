@@ -14,7 +14,7 @@ from tkinter import filedialog
 
 from encryption import DATA_FILE
 
-VERSION: str = "1.7.0"
+VERSION: str = "1.8.0"
 DEFAULT_EMAIL: str = "@gmail.com"
 LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
 popup = None
