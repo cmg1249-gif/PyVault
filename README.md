@@ -98,6 +98,10 @@ shortcut left pointing at an older PyVault folder.
 On Mac and Linux the terminal window needs to stay open while you use the app,
 and there's no Desktop shortcut — those are Windows-only for now.
 
+Once it's open, see **[USAGE.md](USAGE.md)** for a walkthrough of everyday
+tasks — generating and saving passwords, searching, the All Accounts window,
+and backing up your key and vault.
+
 ## Where are my passwords stored?
 
 In an **encrypted vault file** at `~/PyVault_Vault/data.enc` — your home
