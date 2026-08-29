@@ -1,14 +1,21 @@
-
 from cryptography.fernet import InvalidToken
+
+
 class VaultNotFoundError(Exception):
 	"""Raised when a vault doesn't exist."""
 	pass
+
+
 class KeyNotFoundError(Exception):
 	"""Raised when an operation needs the vault key but the keyring has none."""
 	pass
+
+
 class KeyNotValidError(Exception):
 	"""Raised when there is an invalid file being referenced as Vault key"""
 	pass
+
+
 import keyring
 import keyring.errors
 import json
@@ -16,14 +23,20 @@ from cryptography.fernet import Fernet
 import os
 from pathlib import Path
 import shutil
+import base64
+from argon2.low_level import hash_secret_raw, Type
+
 KEYRING_SERVICE = "PyVault-pw-manager"
 KEYRING_USER = "PyVault-user"
 OLD_DATA_FILE = Path(__file__).parent / "data.enc"
 OLD_DATA_FILE_JSON = Path(__file__).parent / "data.json"
-HOME =  Path.home()
+HOME = Path.home()
 VAULT_DIR = HOME.joinpath("./PyVault_Vault")
 DATA_FILE = VAULT_DIR.joinpath("./data.enc")
 DATA_FILE_BAK = VAULT_DIR.joinpath("./data.enc.bak")
+HEADER_VERSION = 1
+DEFAULT_PARAMS = dict(memory_cost=8 * 1024, time_cost=1, parallelism=1)
+_session = None
 def get_key() -> bytes:
 	"""Gets the Fernet key from the OS keyring, creating one if none exists.
 
@@ -37,6 +50,7 @@ def get_key() -> bytes:
 		return key
 	else:
 		return saved_key.encode("utf-8")
+
 
 def read_key() -> bytes:
 	"""Reads the vault key from the OS keyring without ever creating one.
@@ -52,27 +66,32 @@ def read_key() -> bytes:
 	saved_key: bytes = saved_key.encode("utf-8")
 	return saved_key
 
+
 def save_data(data: dict) -> None:
-	"""Encrypts the given dict and writes it to the vault file, replacing it."""
+	"""v2 Encrypts the given dict and writes it to the vault file, replacing it."""
+	if _session is None:
+		raise KeyNotFoundError("Vault is Locked")
+
+	url_safe_key_bytes = base64.urlsafe_b64encode(_session["key"])
 	text: bytes = json.dumps(data).encode("utf-8")
-	f = Fernet(get_key())
+	f = Fernet(url_safe_key_bytes)
 	token: bytes = f.encrypt(text)
-	with open(DATA_FILE, "wb") as file:
-		file.write(token)
+	vault_json = build_vault_text(_session["salt"],_session["memory_cost"],_session["time_cost"],_session["parallelism"], token)
+	DATA_FILE.write_text(vault_json, "utf-8")
+
 
 def load_data() -> dict:
-	"""Reads and decrypts the vault file, returning its contents as a dict.
+	"""v2 Reads and decrypts the vault file, returning its contents as a dict."""
+	if _session is None:
+		raise KeyNotFoundError("Vault is Locked")
 
-	Raises FileNotFoundError if no vault exists yet, and InvalidToken if the
-	file cannot be decrypted with the current key.
-	"""
-	with open(DATA_FILE, "rb") as token_file:
-		token: bytes = token_file.read()
-		f = Fernet(get_key())
-		token = f.decrypt(token)
-		token_string: str = token.decode("utf-8")
-		token_dict: dict = json.loads(token_string)
-		return token_dict
+	header_params = parse_vault_text(DATA_FILE.read_text(encoding="utf-8"))
+	url_safe_key_bytes = base64.urlsafe_b64encode(_session["key"])
+	f = Fernet(url_safe_key_bytes)
+	plain_text = f.decrypt(header_params["ciphertext"])
+	pt_string: str = plain_text.decode("utf-8")
+	pt_dict: dict = json.loads(pt_string)
+	return pt_dict
 
 
 def convert_json() -> None:
@@ -87,6 +106,7 @@ def convert_json() -> None:
 			data = json.load(file)
 			save_data(data)
 		os.remove(OLD_DATA_FILE_JSON)
+
 
 def migrate_data_to_home() -> None:
 	"""Moves a pre-v1.6 vault from beside the program into the home directory.
@@ -103,6 +123,7 @@ def migrate_data_to_home() -> None:
 		Path.mkdir(VAULT_DIR, exist_ok=True, parents=True)
 		shutil.move(OLD_DATA_FILE, DATA_FILE)
 
+
 def export_key(destination: str | Path) -> None:
 	"""Writes the vault key to destination as plain text.
 
@@ -113,6 +134,7 @@ def export_key(destination: str | Path) -> None:
 	if token is None:
 		raise KeyNotFoundError("No key found for user")
 	Path(destination).write_text(token, encoding="utf-8")
+
 
 def import_key(source: str | Path) -> None:
 	"""Reads a key backup file and stores it in the OS keyring as the vault key.
@@ -129,6 +151,8 @@ def import_key(source: str | Path) -> None:
 		raise KeyNotValidError("This file is not a key, or your key is corrupted") from err
 
 	keyring.set_password(KEYRING_SERVICE, KEYRING_USER, token.decode("utf-8"))
+
+
 def export_vault(destination: str | Path) -> None:
 	"""Copies the vault file to destination, leaving the original in place.
 
@@ -141,6 +165,7 @@ def export_vault(destination: str | Path) -> None:
 	if not DATA_FILE.is_file():
 		raise VaultNotFoundError("No vault found for user")
 	shutil.copy2(DATA_FILE, destination)
+
 
 def import_vault(source: str | Path) -> None:
 	"""Replaces the vault with source, backing up any existing vault first.
@@ -195,6 +220,7 @@ def does_key_decrypt_vault(token: bytes) -> bool:
 	except (InvalidToken, ValueError):
 		return False
 
+
 def does_vault_go_with_key(vault: str | Path) -> bool:
 	"""Trial-decrypts a candidate vault file with the current key.
 
@@ -212,10 +238,111 @@ def does_vault_go_with_key(vault: str | Path) -> bool:
 			f = Fernet(read_key())
 			f.decrypt(vault)
 			return True
-	except(InvalidToken, ValueError) :
+	except(InvalidToken, ValueError):
 		return False
 
 
+def to_b64(raw: bytes) -> str:
+	"""Converts a bytes into a base64 encoded string."""
+	base64_bytes = base64.b64encode(raw)
+	base64_string = base64_bytes.decode()
+	return base64_string
+
+
+
+def from_b64(text: str) -> bytes:
+	"""Converts a base64 encoded string into a bytes object."""
+	base64_bytes = base64.b64decode(text)
+	return base64_bytes
+
+def build_vault_text(salt: bytes, memory_cost: int, time_cost: int, parallelism: int, ciphertext: bytes) -> str:
+	"""Return the complete vault file content as a JSON string."""
+	b64_salt = to_b64(salt)
+	b64_ciphertext = to_b64(ciphertext)
+	vault = {
+		"version": HEADER_VERSION,
+		"kdf": "argon2id",
+		"salt": b64_salt,
+		"memory_cost": memory_cost,
+		"time_cost": time_cost,
+		"parallelism": parallelism,
+		"ciphertext": b64_ciphertext
+	}
+	return json.dumps(vault, indent=2)
+
+
+def parse_vault_text(text: str) -> dict:
+	"""Parse vault file content. Returns a dict with keys:
+	     salt (bytes), memory_cost (int), time_cost (int),
+	     parallelism (int), ciphertext (bytes)
+	Raises ValueError on an unsupported version.
+	"""
+	json_str = json.loads(text)
+	if json_str["version"] != HEADER_VERSION:
+		raise ValueError("Unsupported version")
+	else:
+		ciphertext = from_b64(json_str["ciphertext"])
+		salt = from_b64(json_str["salt"])
+		json_str["ciphertext"] = ciphertext
+		json_str["salt"] = salt
+		return json_str
+def create_key_using_pass(password: str, salt: bytes, memory_cost: int,
+						  time_cost: int, parallelism: int) -> bytes:
+	"""Create a 32-byte encryption key from a master password."""
+	password_bytes = password.encode()
+	secret = hash_secret_raw(secret=password_bytes, salt=salt, memory_cost=memory_cost,
+							 time_cost=time_cost, parallelism=parallelism, hash_len=32, type=Type.ID)
+	return secret
+
+def create_vault(password: str, plaintext: str) -> str:
+	"""Encrypt plaintext under a key derived from password.
+	Returns the complete vault file content (JSON string)."""
+	salt = os.urandom(16)
+	key = create_key_using_pass(password,
+								salt,DEFAULT_PARAMS["memory_cost"],
+								DEFAULT_PARAMS["time_cost"],
+								DEFAULT_PARAMS["parallelism"])
+
+	url_safe_key_bytes = base64.urlsafe_b64encode(key)
+	fernet = Fernet(url_safe_key_bytes)
+	token = fernet.encrypt(plaintext.encode())
+
+	vault = build_vault_text(salt=salt, memory_cost=DEFAULT_PARAMS["memory_cost"],
+							 time_cost=DEFAULT_PARAMS["time_cost"],
+							 parallelism=DEFAULT_PARAMS["parallelism"],ciphertext=token)
+
+	return vault
+
+def open_vault(password: str, file_text: str) -> str:
+	"""Parse a vault file, re-derive the key, decrypt, return the plaintext.
+	A wrong password will make Fernet raise InvalidToken — let it raise."""
+	dict_ = parse_vault_text(file_text)
+	key = create_key_using_pass(password, dict_['salt'], dict_['memory_cost'], dict_['time_cost'], dict_['parallelism'])
+	url_safe_key_bytes = base64.urlsafe_b64encode(key)
+	fernet = Fernet(url_safe_key_bytes)
+	plaint_text = fernet.decrypt(dict_['ciphertext'])
+
+	return plaint_text.decode()
+
+def lock():
+	global _session
+	_session = None
+
+def unlock(password):
+	global _session
+	header_params = parse_vault_text(DATA_FILE.read_text())
+	key = create_key_using_pass(password,header_params["salt"],header_params["memory_cost"],
+						  header_params["time_cost"],header_params["parallelism"])
+	_session = {
+		"key": key,
+		"salt": header_params["salt"],
+		"memory_cost": header_params["memory_cost"],
+		"time_cost": header_params["time_cost"],
+		"parallelism": header_params["parallelism"]
+	}
+
+
+
+
+
 migrate_data_to_home()
-
-

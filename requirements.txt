@@ -2,3 +2,4 @@ pyperclip
 cryptography
 keyring
 requests
+argon2-cffi
