@@ -12,6 +12,9 @@ class KeyNotFoundError(Exception):
 	"""Raised when an operation needs the vault key but the keyring has none."""
 	pass
 
+class IncorrectPasswordError(Exception):
+	"""User input is wrong password"""
+	pass
 
 class KeyNotValidError(Exception):
 	"""Raised when there is an invalid file being referenced as Vault key"""
@@ -31,7 +34,6 @@ from argon2.low_level import hash_secret_raw, Type
 KEYRING_SERVICE = "PyVault-pw-manager"
 KEYRING_USER = "PyVault-user"
 OLD_DATA_FILE = Path(__file__).parent / "data.enc"
-OLD_DATA_FILE_JSON = Path(__file__).parent / "data.json"
 HOME = Path.home()
 VAULT_DIR = HOME.joinpath("./PyVault_Vault")
 DATA_FILE = VAULT_DIR.joinpath("./data.enc")
@@ -95,21 +97,6 @@ def load_data() -> dict:
 	pt_string: str = plain_text.decode("utf-8")
 	pt_dict: dict = json.loads(pt_string)
 	return pt_dict
-
-
-def convert_json() -> None:
-	"""Migrates a pre-v1.1 plaintext data.json into the encrypted vault.
-
-	Does nothing if no data.json is present, which is the normal case.
-	"""
-	if not os.path.exists(OLD_DATA_FILE_JSON):
-		return
-	else:
-		with open(OLD_DATA_FILE_JSON, "r") as file:
-			data = json.load(file)
-			save_data(data)
-		os.remove(OLD_DATA_FILE_JSON)
-
 
 def migrate_data_to_home() -> None:
 	"""Moves a pre-v1.6 vault from beside the program into the home directory.
@@ -333,6 +320,13 @@ def unlock(password):
 	header_params = parse_vault_text(DATA_FILE.read_text())
 	key = create_key_using_pass(password,header_params["salt"],header_params["memory_cost"],
 						  header_params["time_cost"],header_params["parallelism"])
+
+	try:
+		url_safe_key_bytes = base64.urlsafe_b64encode(key)
+		f = Fernet(url_safe_key_bytes)
+		f.decrypt(header_params["ciphertext"])
+	except InvalidToken:
+		raise IncorrectPasswordError("The password does not decrypt this vault")
 	_session = {
 		"key": key,
 		"salt": header_params["salt"],

@@ -11,7 +11,6 @@ from tkinter import *
 from tkinter import messagebox
 from pathlib import Path
 from tkinter import filedialog
-
 from encryption import DATA_FILE
 
 VERSION: str = "1.9.0"
@@ -380,7 +379,7 @@ def on_close() -> None:
 	popup = None
 
 # Encrypt json data if its there and remove json file
-encryption.convert_json()
+
 # Window Creation
 window = Tk()
 window.title(f"PyVault: Password Manager v{VERSION}")
@@ -431,8 +430,8 @@ all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
 # File Menu Creation
 menu_bar = Menu(window)                                      # Parent: window
 sub_menu = Menu(menu_bar, tearoff=0)                         # Parent: menu_bar
-sub_menu.add_command(label="Export Vault Key", command=export_key_wrapper) # Creating Export Key button
-sub_menu.add_command(label="Import Vault Key", command=import_key_wrapper)  # Creating Import Key button
+sub_menu.add_command(label="Export Vault Key(v1)", command=export_key_wrapper) # Creating Export Key button
+sub_menu.add_command(label="Import Vault Key(v1)", command=import_key_wrapper)  # Creating Import Key button
 sub_menu.add_command(label="Export Vault", command=export_vault_wrapper)  # Creating Export Vault button
 sub_menu.add_command(label="Import Vault", command=import_vault_wrapper)  # Creating Import Vault button
 sub_menu.add_command(label="Exit", command=window.destroy)                  # Command and label for exit
