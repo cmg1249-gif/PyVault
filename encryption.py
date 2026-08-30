@@ -1,6 +1,8 @@
 from cryptography.fernet import InvalidToken
 
-
+class MigrationError(Exception):
+	"""Raised when a v2 migration fails"""
+	pass
 class VaultNotFoundError(Exception):
 	"""Raised when a vault doesn't exist."""
 	pass
@@ -34,6 +36,7 @@ HOME = Path.home()
 VAULT_DIR = HOME.joinpath("./PyVault_Vault")
 DATA_FILE = VAULT_DIR.joinpath("./data.enc")
 DATA_FILE_BAK = VAULT_DIR.joinpath("./data.enc.bak")
+OLD_KEY_V1 = HOME.joinpath("./PyVault_V1/v1_Key")
 HEADER_VERSION = 1
 DEFAULT_PARAMS = dict(memory_cost=8 * 1024, time_cost=1, parallelism=1)
 _session = None
@@ -152,7 +155,6 @@ def import_key(source: str | Path) -> None:
 
 	keyring.set_password(KEYRING_SERVICE, KEYRING_USER, token.decode("utf-8"))
 
-
 def export_vault(destination: str | Path) -> None:
 	"""Copies the vault file to destination, leaving the original in place.
 
@@ -165,7 +167,6 @@ def export_vault(destination: str | Path) -> None:
 	if not DATA_FILE.is_file():
 		raise VaultNotFoundError("No vault found for user")
 	shutil.copy2(DATA_FILE, destination)
-
 
 def import_vault(source: str | Path) -> None:
 	"""Replaces the vault with source, backing up any existing vault first.
@@ -185,7 +186,6 @@ def import_vault(source: str | Path) -> None:
 	if DATA_FILE.is_file():
 		shutil.copy2(DATA_FILE, DATA_FILE_BAK)
 	shutil.copy2(source, DATA_FILE)
-
 
 def delete_vault() -> None:
 	"""Deletes the vault file and its key from the keyring.
@@ -340,9 +340,39 @@ def unlock(password):
 		"time_cost": header_params["time_cost"],
 		"parallelism": header_params["parallelism"]
 	}
+def is_v1_vault() -> bool:
+	if not DATA_FILE.is_file():
+		return False
+	try:
+		json_text = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+		if json_text.get("version") is None:
+			return True
+		else:
+			return False
+	except json.JSONDecodeError:
+		return True
 
+def migrate_v1_to_v2(new_password: str) -> None:
+	if not is_v1_vault():
+		return
+	#Backing up old vault and key before Migration
+	export_vault(DATA_FILE_BAK)
+	#export_key(OLD_KEY_V1)  !! possible security concern if someone modified this and was able to crack old vaults not sure if its worth doing the key as well as they may have it on the OS ring !!
+	old_key = read_key()
+	f = Fernet(old_key)
+	accounts_json_b = f.decrypt(DATA_FILE.read_text(encoding="utf-8"))
+	accounts_json_t = accounts_json_b.decode("utf-8")
+	v2_vault = create_vault(new_password, accounts_json_t)
+	DATA_FILE.write_text(v2_vault, encoding="utf-8")
 
-
+	if open_vault(new_password, DATA_FILE.read_text(encoding="utf-8")) != accounts_json_t:
+		#restore backup
+		shutil.copy2(DATA_FILE_BAK, DATA_FILE)
+		raise MigrationError("Migration Failed")
+	try:
+		keyring.delete_password(KEYRING_SERVICE,KEYRING_USER)
+	except keyring.errors.PasswordDeleteError:
+		pass
 
 
 migrate_data_to_home()
