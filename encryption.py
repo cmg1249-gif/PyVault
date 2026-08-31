@@ -20,7 +20,6 @@ class KeyNotValidError(Exception):
 	"""Raised when there is an invalid file being referenced as Vault key"""
 	pass
 
-
 import keyring
 import keyring.errors
 import json
@@ -56,7 +55,6 @@ def get_key() -> bytes:
 	else:
 		return saved_key.encode("utf-8")
 
-
 def read_key() -> bytes:
 	"""Reads the vault key from the OS keyring without ever creating one.
 
@@ -71,7 +69,6 @@ def read_key() -> bytes:
 	saved_key: bytes = saved_key.encode("utf-8")
 	return saved_key
 
-
 def save_data(data: dict) -> None:
 	"""v2 Encrypts the given dict and writes it to the vault file, replacing it."""
 	if _session is None:
@@ -83,7 +80,6 @@ def save_data(data: dict) -> None:
 	token: bytes = f.encrypt(text)
 	vault_json = build_vault_text(_session["salt"],_session["memory_cost"],_session["time_cost"],_session["parallelism"], token)
 	DATA_FILE.write_text(vault_json, "utf-8")
-
 
 def load_data() -> dict:
 	"""v2 Reads and decrypts the vault file, returning its contents as a dict."""
@@ -113,7 +109,6 @@ def migrate_data_to_home() -> None:
 		Path.mkdir(VAULT_DIR, exist_ok=True, parents=True)
 		shutil.move(OLD_DATA_FILE, DATA_FILE)
 
-
 def export_key(destination: str | Path) -> None:
 	"""Writes the vault key to destination as plain text.
 
@@ -124,7 +119,6 @@ def export_key(destination: str | Path) -> None:
 	if token is None:
 		raise KeyNotFoundError("No key found for user")
 	Path(destination).write_text(token, encoding="utf-8")
-
 
 def import_key(source: str | Path) -> None:
 	"""Reads a key backup file and stores it in the OS keyring as the vault key.
@@ -189,7 +183,6 @@ def delete_vault() -> None:
 	except keyring.errors.PasswordDeleteError:
 		pass
 
-
 def does_key_decrypt_vault(token: bytes) -> bool:
 	"""Trial-decrypts the vault with a candidate key, without changing anything.
 
@@ -206,7 +199,6 @@ def does_key_decrypt_vault(token: bytes) -> bool:
 			return True
 	except (InvalidToken, ValueError):
 		return False
-
 
 def does_vault_go_with_key(vault: str | Path) -> bool:
 	"""Trial-decrypts a candidate vault file with the current key.
