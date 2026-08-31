@@ -5,15 +5,16 @@ import secrets
 import string
 import threading
 import pwn_checker
+import json
 from cryptography.fernet import InvalidToken, Fernet
 from requests import RequestException
 from tkinter import *
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from pathlib import Path
 from tkinter import filedialog
 from encryption import DATA_FILE
-
-VERSION: str = "1.9.0"
+MP_LENGTH_REQ = 12
+VERSION: str = "2.0.0-beta.1"
 DEFAULT_EMAIL: str = "@gmail.com"
 LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
 popup = None
@@ -378,10 +379,86 @@ def on_close() -> None:
 	popup.destroy()
 	popup = None
 
-# Encrypt json data if its there and remove json file
+# A Gated Startup
+def start_up_gate() -> bool:
+	"""To be filled in"""
+	def prompt_new_master_pw() -> str | None:
+		"""Prompts user twice for master password returns string or None"""
+		answer_1 = simpledialog.askstring(
+			title="No Vault File",
+			prompt="Please enter your Master Password to build your new Vault",
+			show="*",
+			parent=window
+		)
+		answer_2 = simpledialog.askstring(
+			title="No Vault File",
+			prompt="Please enter your Master Password to build your new Vault",
+			show="*",
+			parent=window
+		)
+		if answer_1 is None or answer_2 is None:
+			return None
+		elif answer_1 != answer_2:
+			return None
+		elif (answer_1 == "") or (answer_2 == ""):
+			return None
+		elif len(answer_2) < MP_LENGTH_REQ:
+			y_or_n = messagebox.askyesno(title="Invalid Password",
+			                             message="The password you entered is to short or invalid,try again?\nPasswords must be 12 characters long")
+			if y_or_n is None or y_or_n is False:
+				return None
+			if y_or_n:
+				return prompt_new_master_pw()
+		else:
+			return answer_2
+
+	if not DATA_FILE.is_file():
+			password = prompt_new_master_pw()
+			serialized_json_string = encryption.create_vault(password, json.dumps({}))
+			DATA_FILE.write_text(serialized_json_string, encoding="utf-8")
+			encryption.unlock(password)
+			return True
+	elif  encryption.is_v1_vault():
+		y_or_n = messagebox.askyesno(
+			title="We've upgraded to v2!",
+			message=(
+				"PyVault now locks your vault with a master password, using stronger "
+				"encryption (Argon2id) than the previous version.\n\n"
+				"To upgrade, you'll choose a master password on the next screen. "
+				"You'll enter it each time PyVault starts from now on, so pick "
+				"something you won't forget — it cannot be recovered.\n\n"
+				"Your current vault is copied to data.enc.bak in your PyVault_Vault "
+				"folder before anything is changed.\n\n"
+				"If you decline, PyVault will close: this version cannot open an "
+				"old vault.\n\n"
+				"Upgrade now?"
+			),
+		)
+		if y_or_n is None or y_or_n is False:
+			return False
+		elif y_or_n:
+			password = prompt_new_master_pw()
+			encryption.migrate_v1_to_v2(password)
+			encryption.unlock(password)
+			return True
+	else:
+		password = simpledialog.askstring(
+		title="Vault Locked",
+		prompt="Please enter your Master Password to open your Vault",
+		show="*",
+		parent=window
+	)
+		if password is None:
+			return False
+		try:
+			encryption.unlock(password)
+			return True
+		except encryption.IncorrectPasswordError:
+			start_up_gate()
 
 # Window Creation
 window = Tk()
+
 window.title(f"PyVault: Password Manager v{VERSION}")
 window.minsize(300, 300)
 window.config(bg="white", padx=50, pady=50)
@@ -431,12 +508,11 @@ all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
 menu_bar = Menu(window)                                      # Parent: window
 sub_menu = Menu(menu_bar, tearoff=0)                         # Parent: menu_bar
 sub_menu.add_command(label="Export Vault Key(v1)", command=export_key_wrapper) # Creating Export Key button
-sub_menu.add_command(label="Import Vault Key(v1)", command=import_key_wrapper)  # Creating Import Key button
 sub_menu.add_command(label="Export Vault", command=export_vault_wrapper)  # Creating Export Vault button
 sub_menu.add_command(label="Import Vault", command=import_vault_wrapper)  # Creating Import Vault button
 sub_menu.add_command(label="Exit", command=window.destroy)                  # Command and label for exit
 menu_bar.add_cascade(label="Options", menu=sub_menu)			 # Make a cascading menu
 window.config(menu=menu_bar)								 # put the menu_bar together on the window
 
-
+start_up_gate()
 window.mainloop()
