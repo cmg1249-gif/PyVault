@@ -1,5 +1,51 @@
 # Changelog
 
+## v2.0.0-beta.1 — 2026-08-31
+
+**Beta.** The vault format changes in this release and migration is one-way.
+Back up your vault before upgrading.
+
+- **Master password**: PyVault no longer unlocks itself. The vault key is
+  derived from a master password you choose, using **Argon2id** — the same
+  family of key-derivation function real password managers use. The password
+  is never stored anywhere; the key is rebuilt from it each time you unlock,
+  and lives only in memory for that session. Previously the key sat in the OS
+  keyring and PyVault opened the vault automatically, which meant anyone with
+  access to your unlocked computer could read every saved password
+- **New vault format (v2)**: the vault file is now a JSON envelope — a
+  readable header holding the Argon2 parameters and a random per-vault salt,
+  wrapped around the encrypted accounts. Keeping the parameters *in the file*
+  means the cost settings can be raised in a later release without making
+  existing vaults unreadable
+- **Automatic migration from v1**: an old vault is detected at startup and
+  PyVault offers to upgrade it. You choose a master password, the vault is
+  converted, and the conversion is verified by decrypting the result before
+  the old key is discarded. The previous vault is copied to `data.enc.bak`
+  first
+- **Startup unlock gate**: the main window no longer appears until the vault
+  is actually open. On first run it asks you to set a master password and
+  creates an empty vault; on later runs it asks for that password. A wrong
+  password is rejected before any session is cached
+- **Removed** the pre-v1.1 plaintext JSON conversion path, which existed only
+  to migrate vaults from before encryption was added
+
+### Known gaps in this beta
+
+These are tracked and will be fixed before v2.0.0 final:
+
+- **Argon2 cost parameters are below OWASP guidance** and will be raised.
+  Vaults created now will still open afterwards — that is what the header is
+  for — but they are derived with weaker settings than they should be
+- **Vault writes are not atomic.** A crash or power loss during a save can
+  truncate the vault file. Keep a backup
+- **Migration and unlock failures surface as tracebacks** rather than
+  readable dialogs
+- **No idle auto-lock.** Once unlocked, the vault stays unlocked until the
+  app is closed
+- **The v1 key export/import menu items are vestigial.** They act on a keyring
+  key that a v2 vault no longer uses, and will be removed
+
+
 ## v1.9.0 — 2026-08-12
 
 - **Double-click to reveal a password**: double-clicking a row in the *All
