@@ -313,63 +313,7 @@ def import_vault_wrapper() -> None:
 		messagebox.showinfo(title="Success!", message=f"Your file has been imported to: {user_chosen_path}!")
 	except encryption.VaultNotFoundError:
 		messagebox.showerror(title="Error", message="Vault Can't Be Found")
-def export_key_wrapper() -> None:
-	"""Asks where to save a key backup, then writes the vault key there.
 
-	Does nothing if the user cancels the dialog. The exported file can
-	decrypt the vault, so it should be stored somewhere trusted.
-	"""
-	user_chosen_path = filedialog.asksaveasfilename(
-		defaultextension=".key",
-		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
-		initialfile="pyvault_backup.key",
-
-	)
-	if not user_chosen_path or user_chosen_path == "":
-		return
-	try:
-		encryption.export_key(user_chosen_path)
-		messagebox.showinfo(title="Success!", message=f"Your file has been saved to {user_chosen_path}")
-	except encryption.KeyNotFoundError:
-		messagebox.showerror(title="KeyNotFound Error", message="No key file found!")
-
-def import_key_wrapper() -> None:
-	"""Asks for a key backup file, checks it against the vault, then imports it.
-
-	Guards in order: user cancelled, file is not a valid key, and key does
-	not open the existing vault (warns that saved passwords become
-	unreadable and lets the user back out). Only after all checks pass is
-	the key committed to the keyring via encryption.import_key().
-	"""
-	user_chosen_path = filedialog.askopenfilename(
-		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
-		title="Import Key Backup File",
-	)
-	if not user_chosen_path or user_chosen_path == "":
-		return
-	token: bytes = Path(user_chosen_path).read_text(encoding="utf-8").strip().encode("utf-8")
-	try:
-		Fernet(token)
-	except ValueError:
-		messagebox.showinfo(title="Value Error", message="Not a valid vault key!")
-		return
-	if encryption.DATA_FILE.is_file():
-		if not encryption.does_key_decrypt_vault(token):
-			y_or_n = messagebox.askyesno(title="Key does not decrypt vault",message="key doesn't match your vault — saved passwords will become unreadable. Continue?")
-			if not y_or_n:
-				return
-	try:
-		encryption.import_key(user_chosen_path)
-	except encryption.KeyNotValidError:
-		messagebox.showerror(title="Key Error", message="This file is not a key or it is corrupted!")
-		return
-	except FileNotFoundError:
-		messagebox.showerror(title="File Not Found", message="File not found!Either missing or moved!")
-		return
-	else:
-		messagebox.showinfo(title="Success!", message="File successfully imported!")
-
-	encryption.import_key(user_chosen_path)
 
 # Popup Management
 
@@ -507,7 +451,6 @@ all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
 # File Menu Creation
 menu_bar = Menu(window)                                      # Parent: window
 sub_menu = Menu(menu_bar, tearoff=0)                         # Parent: menu_bar
-sub_menu.add_command(label="Export Vault Key(v1)", command=export_key_wrapper) # Creating Export Key button
 sub_menu.add_command(label="Export Vault", command=export_vault_wrapper)  # Creating Export Vault button
 sub_menu.add_command(label="Import Vault", command=import_vault_wrapper)  # Creating Import Vault button
 sub_menu.add_command(label="Exit", command=window.destroy)                  # Command and label for exit

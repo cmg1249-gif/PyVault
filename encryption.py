@@ -16,9 +16,6 @@ class IncorrectPasswordError(Exception):
 	"""User input is wrong password"""
 	pass
 
-class KeyNotValidError(Exception):
-	"""Raised when there is an invalid file being referenced as Vault key"""
-	pass
 
 import keyring
 import keyring.errors
@@ -37,23 +34,11 @@ HOME = Path.home()
 VAULT_DIR = HOME.joinpath("./PyVault_Vault")
 DATA_FILE = VAULT_DIR.joinpath("./data.enc")
 DATA_FILE_BAK = VAULT_DIR.joinpath("./data.enc.bak")
-OLD_KEY_V1 = HOME.joinpath("./PyVault_V1/v1_Key")
+
 HEADER_VERSION = 1
 DEFAULT_PARAMS = dict(memory_cost=8 * 1024, time_cost=1, parallelism=1)
 _session = None
-def get_key() -> bytes:
-	"""Gets the Fernet key from the OS keyring, creating one if none exists.
 
-	Returns the key as bytes, ready to hand to Fernet(). The keyring stores
-	it as a string, so it is decoded on the way in and encoded on the way out.
-	"""
-	saved_key: str | None = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
-	if saved_key is None:
-		key: bytes = Fernet.generate_key()
-		keyring.set_password(KEYRING_SERVICE, KEYRING_USER, key.decode("utf-8"))
-		return key
-	else:
-		return saved_key.encode("utf-8")
 
 def read_key() -> bytes:
 	"""Reads the vault key from the OS keyring without ever creating one.
@@ -94,7 +79,7 @@ def load_data() -> dict:
 	pt_dict: dict = json.loads(pt_string)
 	return pt_dict
 
-def migrate_data_to_home() -> None:
+def ensure_vault_dir() -> None:
 	"""Moves a pre-v1.6 vault from beside the program into the home directory.
 
 	Also creates the vault directory. Never overwrites a vault that already
@@ -108,33 +93,6 @@ def migrate_data_to_home() -> None:
 		# Make the vault DIR if it's not there
 		Path.mkdir(VAULT_DIR, exist_ok=True, parents=True)
 		shutil.move(OLD_DATA_FILE, DATA_FILE)
-
-def export_key(destination: str | Path) -> None:
-	"""Writes the vault key to destination as plain text.
-
-	The resulting file can decrypt the vault, so it is as sensitive as the
-	passwords themselves. Raises KeyNotFoundError if the keyring has no key.
-	"""
-	token: str | None = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
-	if token is None:
-		raise KeyNotFoundError("No key found for user")
-	Path(destination).write_text(token, encoding="utf-8")
-
-def import_key(source: str | Path) -> None:
-	"""Reads a key backup file and stores it in the OS keyring as the vault key.
-
-	The file is validated as a well-formed Fernet key before anything is
-	written, so a failed import leaves the keyring exactly as it was.
-	Raises KeyNotValidError if the file is not a key, and FileNotFoundError
-	if there is nothing at source.
-	"""
-	token: bytes = Path(source).read_text(encoding="utf-8").strip().encode("utf-8")
-	try:
-		Fernet(token)
-	except ValueError as err:
-		raise KeyNotValidError("This file is not a key, or your key is corrupted") from err
-
-	keyring.set_password(KEYRING_SERVICE, KEYRING_USER, token.decode("utf-8"))
 
 def export_vault(destination: str | Path) -> None:
 	"""Copies the vault file to destination, leaving the original in place.
@@ -183,22 +141,7 @@ def delete_vault() -> None:
 	except keyring.errors.PasswordDeleteError:
 		pass
 
-def does_key_decrypt_vault(token: bytes) -> bool:
-	"""Trial-decrypts the vault with a candidate key, without changing anything.
 
-	Returns True if the key opens the current vault. A wrong key or a
-	malformed one both return False - either way it does not open the vault.
-	Raises FileNotFoundError if there is no vault; callers should check
-	DATA_FILE.is_file() first.
-	"""
-	try:
-		with open(DATA_FILE, "rb") as vault_file:
-			vault: bytes = vault_file.read()
-			f = Fernet(token)
-			f.decrypt(vault)
-			return True
-	except (InvalidToken, ValueError):
-		return False
 
 def does_vault_go_with_key(vault: str | Path) -> bool:
 	"""Trial-decrypts a candidate vault file with the current key.
@@ -343,7 +286,6 @@ def migrate_v1_to_v2(new_password: str) -> None:
 		return
 	#Backing up old vault and key before Migration
 	export_vault(DATA_FILE_BAK)
-	#export_key(OLD_KEY_V1)  !! possible security concern if someone modified this and was able to crack old vaults not sure if its worth doing the key as well as they may have it on the OS ring !!
 	old_key = read_key()
 	f = Fernet(old_key)
 	accounts_json_b = f.decrypt(DATA_FILE.read_text(encoding="utf-8"))
@@ -361,4 +303,4 @@ def migrate_v1_to_v2(new_password: str) -> None:
 		pass
 
 
-migrate_data_to_home()
+ensure_vault_dir()

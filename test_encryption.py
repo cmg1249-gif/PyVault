@@ -64,13 +64,15 @@ def test_key_is_deterministic():
 # ---------------------------------------------------------------------
 
 def test_fresh_salt_each_create():
-	"""Two vaults from identical inputs must NOT be identical files.
+	"""Two vaults from identical inputs must NOT reuse the same salt.
 
-	Hint: call create_vault twice with the same password and secret,
-	then assert the two strings differ. If they match, the salt isn't
-	fresh per call.
+	Comparing the whole file strings is too weak: Fernet picks a fresh IV
+	on every encrypt, so two vaults come out different even when the salt
+	is hardcoded. Parse the salt back out of each file and compare those.
 	"""
-	pass
+	vault1 = create_vault(MASTER_PW, SECRET)
+	vault2 = create_vault(MASTER_PW, SECRET)
+	assert parse_vault_text(vault1)["salt"] != parse_vault_text(vault2)["salt"]
 
 
 def test_salt_changes_key():
@@ -79,14 +81,23 @@ def test_salt_changes_key():
 	Hint: shaped like test_key_is_deterministic, but with two different
 	salt values and `!=` instead of `==`.
 	"""
-	pass
+	salt1 = b"0123456789abcdee"  # fixed on purpose — no randomness here
+	salt2 = b"0123456789abcdef"  # fixed on purpose — no randomness here
+	key1 = create_key_using_pass(MASTER_PW, salt1, **DEFAULT_PARAMS)
+	key2 = create_key_using_pass(MASTER_PW, salt2, **DEFAULT_PARAMS)
+	assert key1 != key2
+	assert len(key1) == 32
 
 
 def test_bad_version_raises():
 	"""A file claiming an unsupported version must be rejected.
 
-	Hint: create a vault, json.loads it into a dict, set its "version"
-	to 99, json.dumps it back, then use pytest.raises(ValueError)
-	around parse_vault_text on that text.
+	The header is plain JSON outside the ciphertext, so anyone can edit it.
+	A future format could lay out the salt or params differently, and
+	parsing one with today's rules would produce silent nonsense.
 	"""
-	pass
+	header = json.loads(create_vault(MASTER_PW, SECRET))
+	header["version"] = 99  # a version this build knows nothing about
+	tampered_text = json.dumps(header)
+	with pytest.raises(ValueError):
+		parse_vault_text(tampered_text)
