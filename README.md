@@ -160,6 +160,31 @@ If a vault will not open, the cause is almost always a mistyped master
 password. **Your passwords are still there** — the file is locked, not
 damaged.
 
+## Roadmap
+
+Planned before **v2.0.0 final**:
+
+- **Atomic vault writes** — saving currently truncates the vault file and then
+  rewrites it, so a crash or power loss in between can leave it damaged. The
+  fix is to write a temporary file alongside the vault, flush it to disk, and
+  atomically replace the original, so a save either fully happens or does not
+  happen at all
+- **Argon2 cost parameters raised** to meet OWASP guidance. Existing vaults
+  keep working — their parameters live in their own header
+- **Readable error dialogs** in place of the tracebacks that a failed unlock
+  or migration currently produces
+- **Idle auto-lock** — clear the session after a period of inactivity, so an
+  unlocked vault does not stay open on an unattended machine
+- **Removal of the vestigial v1 key menu items**, which act on a keyring key
+  that a v2 vault no longer uses
+- **Test coverage** for unlock, save/load, and migration
+
+Planned after that:
+
+- **A refreshed interface** — the current window is plain Tkinter defaults.
+  Restyling it with `ttk` widgets and a considered layout, so it looks like
+  something you would choose to use rather than a class project
+
 ## Version history
 
 See [CHANGELOG.md](CHANGELOG.md). Current release: **v2.0.0-beta.1** —
