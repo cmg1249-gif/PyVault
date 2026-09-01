@@ -14,8 +14,6 @@ A Tkinter GUI password manager with an encrypted vault. Started as Day 29–30 o
 >   truncate the vault file. Keep a backup.
 > - **No idle auto-lock.** Once you unlock it, the vault stays unlocked until
 >   you close the app.
-> - **The Argon2 cost parameters are currently below OWASP guidance** and will
->   be raised before v2.0.0 final.
 > - Passwords are shown in plaintext popups.
 > - Clipboard auto-clear can't scrub Windows clipboard *history* (Win+V), and
 >   won't fire if the app is closed mid-countdown.
@@ -51,13 +49,12 @@ A Tkinter GUI password manager with an encrypted vault. Started as Day 29–30 o
   itself after you save so it never shows stale entries
 - **Delete accounts** from the All Accounts window — select an entry,
   confirm, and it's removed from the encrypted vault
-- **Key backup and restore (v1 only)** — *Options → Export Vault Key* and
-  *Import Vault Key* act on the old keyring key, which a v2 vault no longer
-  uses. They remain only for recovering pre-v2 vaults and will be removed
-- **Vault backup and restore** — *Options → Export Vault* saves a copy of your
-  encrypted vault; *Import Vault* replaces it from a backup. Importing copies
-  the current vault to `data.enc.bak` first, so a mistaken import is
-  recoverable
+- **Vault backup and restore** — *Options → Export Vault* saves a copy of
+  your encrypted vault; *Import Vault* replaces it from a backup after asking
+  for that backup's master password and proving it opens the file. Importing
+  first copies the current vault to a fresh numbered backup
+  (`data.enc.bak`, `data.enc.bak_1`, …), so no import ever destroys an
+  earlier backup
 - Validates that all fields are filled before saving
 
 ## How to run it
@@ -162,21 +159,22 @@ damaged.
 
 ## Roadmap
 
-Planned before **v2.0.0 final**:
+Planned for **v2.1**:
 
 - **Atomic vault writes** — saving currently truncates the vault file and then
   rewrites it, so a crash or power loss in between can leave it damaged. The
   fix is to write a temporary file alongside the vault, flush it to disk, and
   atomically replace the original, so a save either fully happens or does not
   happen at all
-- **Argon2 cost parameters raised** to meet OWASP guidance. Existing vaults
-  keep working — their parameters live in their own header
+- **Change master password** — re-encrypts the vault under a new password and
+  fresh Argon2 parameters, which is also how a vault created under older,
+  weaker settings gets upgraded to the current ones
 - **Readable error dialogs** in place of the tracebacks that a failed unlock
   or migration currently produces
 - **Idle auto-lock** — clear the session after a period of inactivity, so an
   unlocked vault does not stay open on an unattended machine
-- **Removal of the vestigial v1 key menu items**, which act on a keyring key
-  that a v2 vault no longer uses
+- **Removal of the v1 migration path** (`read_key`, `migrate_v1_to_v2` and the
+  keyring dependency), once no pre-v2 vault could reasonably remain
 - **Test coverage** for unlock, save/load, and migration
 
 Planned after that:
@@ -187,8 +185,7 @@ Planned after that:
 
 ## Version history
 
-See [CHANGELOG.md](CHANGELOG.md). Current release: **v2.0.0-beta.1** —
-a beta. The last stable release is **v1.9.0**.
+See [CHANGELOG.md](CHANGELOG.md). Current release: **v2.0.1**.
 
 ## License
 

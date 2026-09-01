@@ -35,7 +35,7 @@ DATA_FILE = VAULT_DIR.joinpath("./data.enc")
 DATA_FILE_BAK = VAULT_DIR.joinpath("./data.enc.bak")
 
 HEADER_VERSION = 1
-DEFAULT_PARAMS = dict(memory_cost=8 * 1024, time_cost=1, parallelism=1)
+DEFAULT_PARAMS = dict(memory_cost=8 * 1024, time_cost=3, parallelism=4)
 _session = None
 _counter = 0
 
@@ -152,12 +152,6 @@ def delete_vault() -> None:
 		os.remove(DATA_FILE)
 	except FileNotFoundError:
 		pass
-	try:
-		keyring.delete_password(KEYRING_SERVICE, KEYRING_USER)
-	except keyring.errors.PasswordDeleteError:
-		pass
-
-
 
 def to_b64(raw: bytes) -> str:
 	"""Converts a bytes into a base64 encoded string."""

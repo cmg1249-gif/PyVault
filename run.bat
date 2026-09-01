@@ -27,7 +27,7 @@ if not "%REQHASH%"=="%SAVEDHASH%" goto setup
 REM  Cheap safety net: if a package has been removed or the Python
 REM  install has changed, drop back into the visible setup.
 REM  Keep this list in step with requirements.txt.
-python -c "import pyperclip, cryptography, keyring, requests" >nul 2>nul
+python -c "import pyperclip, cryptography, keyring, requests, argon2" >nul 2>nul
 if errorlevel 1 goto setup
 
 goto launch

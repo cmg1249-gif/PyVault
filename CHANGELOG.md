@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.0.1 — 2026-09-01
+
+- **Argon2 cost parameters raised** to 64 MiB memory, 3 iterations,
+  4 lanes — at or above OWASP guidance. Applies to newly created vaults;
+  an existing vault keeps the parameters in its own header and still opens.
+  Re-deriving an old vault at the new settings will arrive with the
+  change-master-password feature
+- **Documentation rewritten for v2**: README and USAGE no longer describe
+  the removed v1 key export/import; backup/restore is documented as one
+  file plus the master password
+- `delete_vault` no longer touches the OS keyring — a reset is just the
+  vault file, and the next startup creates a fresh one
+
+## v2.0.0 — 2026-08-31
+
+- **Vault import rewritten around the master password.** Import now asks
+  for the password of the chosen backup and proves it opens the file
+  before committing: wrong password re-prompts, a non-vault file is
+  rejected, and a successful import relocks and reopens the session
+  against the imported vault
+- **Numbered vault backups.** Importing saves the current vault to the
+  first free name (`data.enc.bak`, `data.enc.bak_1`, …) instead of always
+  overwriting `data.enc.bak`. This also fixes a shipped v1.8/v1.9 bug where
+  restoring *from* `data.enc.bak` destroyed the backup in the process
+- **The v1 key surface is gone**: Export/Import Vault Key menu items and
+  the underlying keyring key export/import/check functions are removed.
+  A v2 vault has no key file — the master password is the key. (v1-to-v2
+  migration itself remains for old vaults)
+- **Encryption test suite completed** — seven real tests covering
+  round-trip, wrong password, plaintext leakage, key determinism, fresh
+  salt per vault, salt-dependent keys, and version rejection
+
 ## v2.0.0-beta.1 — 2026-08-31
 
 **Beta.** The vault format changes in this release and migration is one-way.

@@ -65,13 +65,14 @@ if ! "$PY" -m pip install --user -r requirements.txt; then
     exit 1
 fi
 
-# The app stores its encryption key in the OS keyring; on Linux that needs
+# A v2 vault is locked by your master password and needs no keyring. The OS
+# keyring is only read when migrating an old pre-v2 vault; on Linux that needs
 # a Secret Service daemon (GNOME Keyring or KWallet). Warn if none is running.
 if [ "$(uname)" = "Linux" ] && ! pgrep -x gnome-keyring-daemon >/dev/null 2>&1 && ! pgrep -f kwalletd >/dev/null 2>&1; then
     echo ""
     echo "Note: no keyring service (GNOME Keyring / KWallet) appears to be running."
-    echo "The app needs one to store its encryption key. On a minimal setup, install"
-    echo "and start one, e.g.:"
+    echo "That only matters if you are upgrading an old pre-v2 vault. If you are,"
+    echo "install and start one, e.g.:"
     echo "  Ubuntu/Debian:  sudo apt install gnome-keyring"
     echo "  Arch:           sudo pacman -S gnome-keyring"
     echo "Desktop environments like GNOME or KDE usually have this already."
