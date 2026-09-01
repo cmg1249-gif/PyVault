@@ -27,8 +27,7 @@ import shutil
 import base64
 from argon2.low_level import hash_secret_raw, Type
 
-KEYRING_SERVICE = "PyVault-pw-manager"
-KEYRING_USER = "PyVault-user"
+
 OLD_DATA_FILE = Path(__file__).parent / "data.enc"
 HOME = Path.home()
 VAULT_DIR = HOME.joinpath("./PyVault_Vault")
@@ -38,7 +37,7 @@ DATA_FILE_BAK = VAULT_DIR.joinpath("./data.enc.bak")
 HEADER_VERSION = 1
 DEFAULT_PARAMS = dict(memory_cost=8 * 1024, time_cost=1, parallelism=1)
 _session = None
-
+_counter = 0
 
 def read_key() -> bytes:
 	"""Reads the vault key from the OS keyring without ever creating one.
@@ -107,25 +106,42 @@ def export_vault(destination: str | Path) -> None:
 		raise VaultNotFoundError("No vault found for user")
 	shutil.copy2(DATA_FILE, destination)
 
-def import_vault(source: str | Path) -> None:
+def import_vault(source: str | Path) -> str | None:
 	"""Replaces the vault with source, backing up any existing vault first.
 
-	Any current data.enc is copied to data.enc.bak before being overwritten,
-	so a bad import is always recoverable: import_vault(DATA_FILE_BAK) puts
-	it back. Deliberately does NOT check whether the current key decrypts
-	source - during a restore the vault may arrive before its key, so that
-	is the wrapper's job to warn about, not this function's job to block.
-	Callers confirm overwrites with the user before calling (see
-	import_vault_wrapper). Raises VaultNotFoundError if source is not a file.
+	The current vault is copied to a fresh numbered backup name from
+	next_backup_path() before being overwritten, so an import never
+	destroys an earlier backup and a bad import is always recoverable:
+	import that backup file to put it back. Returns the path the backup
+	was written to, or None if there was no vault to back up.
+	Deliberately does NOT check whether the password opens source - that
+	is the wrapper's job (see import_vault_wrapper, which trial-opens the
+	file first). Callers confirm overwrites with the user before calling.
+	Raises VaultNotFoundError if source is not a file.
 	"""
 	path = Path(source)
 	if not path.is_file():
 		raise VaultNotFoundError("No vault found for user")
 	Path.mkdir(VAULT_DIR, exist_ok=True, parents=True)
+	backup = None
 	if DATA_FILE.is_file():
-		shutil.copy2(DATA_FILE, DATA_FILE_BAK)
+		backup = next_backup_path()
+		shutil.copy2(DATA_FILE, backup)
 	shutil.copy2(source, DATA_FILE)
-
+	return backup
+def next_backup_path() -> str:
+	n = 0
+	candidate = DATA_FILE_BAK
+	if not candidate.exists():
+		return str(DATA_FILE_BAK)
+	while candidate.exists():
+		n += 1
+		new_candidate_string =f"{str(DATA_FILE_BAK)}_{n}"
+		new_candidate_path = Path(new_candidate_string)
+		if new_candidate_path.exists():
+			continue
+		if not new_candidate_path.exists():
+			return new_candidate_string
 def delete_vault() -> None:
 	"""Deletes the vault file and its key from the keyring.
 
@@ -141,27 +157,6 @@ def delete_vault() -> None:
 	except keyring.errors.PasswordDeleteError:
 		pass
 
-
-
-def does_vault_go_with_key(vault: str | Path) -> bool:
-	"""Trial-decrypts a candidate vault file with the current key.
-
-	The mirror of does_key_decrypt_vault: there the key is the candidate
-	and the vault is known; here the vault file is the candidate and the
-	key comes from the keyring. Returns True if the current key opens it.
-	A wrong key or a file that is not a Fernet token both return False.
-	Raises KeyNotFoundError (from read_key) if the keyring has no key, and
-	FileNotFoundError if there is nothing at vault - callers decide how to
-	present those, since both are normal states during a restore.
-	"""
-	try:
-		with open(vault, "rb") as vault_file:
-			vault: bytes = vault_file.read()
-			f = Fernet(read_key())
-			f.decrypt(vault)
-			return True
-	except(InvalidToken, ValueError):
-		return False
 
 
 def to_b64(raw: bytes) -> str:

@@ -259,11 +259,6 @@ def find_all_accounts() -> None:
 # Export/Import Key GUI file dialog building
 def export_vault_wrapper() -> None:
 	"""Asks where to save a vault backup, then copies the vault there.
-
-	The backup is ciphertext and useless without the key, so on its own it
-	is safe to store almost anywhere - but restoring also needs a key backup
-	(Export Vault Key). Cancelling the dialog does nothing; a missing vault
-	(VaultNotFoundError) is reported to the user.
 	"""
 	user_chosen_path = filedialog.asksaveasfilename(
 		defaultextension=".enc",
@@ -278,17 +273,9 @@ def export_vault_wrapper() -> None:
 	except encryption.VaultNotFoundError:
 		messagebox.showerror(title="Error", message="Vault Can't Be Found")
 
-def import_vault_wrapper() -> None:
-	"""Asks for a vault backup file, confirms, checks the key, then imports it.
 
-	Guards in order: user cancelled; an existing vault would be overwritten
-	(the current vault is copied to data.enc.bak first, so this is
-	recoverable); and the current key does not open the chosen vault. A key
-	that does not decrypt it warns and lets the user back out; no key at all
-	is allowed through, since a restore may bring the vault before its key.
-	Only after the guards pass is the vault committed via
-	encryption.import_vault().
-	"""
+
+def import_vault_wrapper() -> None:
 	user_chosen_path = filedialog.askopenfilename(
 		defaultextension=".enc",
 		filetypes=[("Encrypted File", "*.enc"), ("All Files", "*.*")],
@@ -297,24 +284,32 @@ def import_vault_wrapper() -> None:
 	if not user_chosen_path or user_chosen_path == "":
 		return
 	if DATA_FILE.is_file():
-		y_or_n =messagebox.askyesno(title="Old Vault", message="Old Vault file already exists! Overwrite?")
+		y_or_n = messagebox.askyesno(title="Replacing Current Vault", message="Replace your current vault? (Your current vault will be backed up automatically first.)")
 		if y_or_n is None or y_or_n is False:
 			return
-	try:
-		pairs = encryption.does_vault_go_with_key(user_chosen_path)
-	except encryption.KeyNotFoundError:
-		messagebox.showinfo(title="No Key", message="No key found — import your key next or the vault won't open.")
-		pairs = True
-	if not pairs:
-		if not messagebox.askyesno(title="Error", message="Wrong Key for this vault, continue?"):
+	while True:
+		password = prompt_for_password()
+		if password is None:
 			return
-	try:
-		encryption.import_vault(user_chosen_path)
-		messagebox.showinfo(title="Success!", message=f"Your file has been imported to: {user_chosen_path}!")
-	except encryption.VaultNotFoundError:
-		messagebox.showerror(title="Error", message="Vault Can't Be Found")
+		try:
+			vault_string = Path(user_chosen_path).read_text()
+			encryption.open_vault(password, vault_string)
+		except InvalidToken:
+			messagebox.showinfo(title="Error: Password", message="Incorrect Password")
+			continue
+		except ValueError:
+			messagebox.showinfo(title="Error: Not A Vault", message="Not a valid v2 Vault")
+			return
+		break
 
+	backup = encryption.import_vault(user_chosen_path)
 
+	encryption.lock()
+	encryption.unlock(password)
+	if backup is None:
+		messagebox.showinfo(title="Success!", message="Your new vault has been imported!")
+	else:
+		messagebox.showinfo(title="Success!", message=f"Your new vault has been imported and a backup of your previous vault is located at: {backup}!")
 # Popup Management
 
 def on_close() -> None:
@@ -322,39 +317,51 @@ def on_close() -> None:
 	global popup
 	popup.destroy()
 	popup = None
+def prompt_for_password() -> str | None:
+	"""Prompts the user once to enter a password for a vault."""
+	password = simpledialog.askstring(
+		title="Password",
+		prompt="Please enter your Master Password to open the vault you are importing",
+		show="*",
+		parent=window
+	)
+	if password is None:
+		return None
+	return password
 
+def prompt_new_master_pw() -> str | None:
+	"""Prompts user twice for master password returns string or None"""
+	answer_1 = simpledialog.askstring(
+		title="No Vault File",
+		prompt="Please enter your Master Password to build your new Vault",
+		show="*",
+		parent=window
+	)
+	answer_2 = simpledialog.askstring(
+		title="No Vault File",
+		prompt="Please enter your Master Password to build your new Vault",
+		show="*",
+		parent=window
+	)
+	if answer_1 is None or answer_2 is None:
+		return None
+	elif answer_1 != answer_2:
+		return None
+	elif (answer_1 == "") or (answer_2 == ""):
+		return None
+	elif len(answer_2) < MP_LENGTH_REQ:
+		y_or_n = messagebox.askyesno(title="Invalid Password",
+									 message="The password you entered is to short or invalid,try again?\nPasswords must be 12 characters long")
+		if y_or_n is None or y_or_n is False:
+			return None
+		if y_or_n:
+			return prompt_new_master_pw()
+	else:
+		return answer_2
 # A Gated Startup
 def start_up_gate() -> bool:
 	"""To be filled in"""
-	def prompt_new_master_pw() -> str | None:
-		"""Prompts user twice for master password returns string or None"""
-		answer_1 = simpledialog.askstring(
-			title="No Vault File",
-			prompt="Please enter your Master Password to build your new Vault",
-			show="*",
-			parent=window
-		)
-		answer_2 = simpledialog.askstring(
-			title="No Vault File",
-			prompt="Please enter your Master Password to build your new Vault",
-			show="*",
-			parent=window
-		)
-		if answer_1 is None or answer_2 is None:
-			return None
-		elif answer_1 != answer_2:
-			return None
-		elif (answer_1 == "") or (answer_2 == ""):
-			return None
-		elif len(answer_2) < MP_LENGTH_REQ:
-			y_or_n = messagebox.askyesno(title="Invalid Password",
-			                             message="The password you entered is to short or invalid,try again?\nPasswords must be 12 characters long")
-			if y_or_n is None or y_or_n is False:
-				return None
-			if y_or_n:
-				return prompt_new_master_pw()
-		else:
-			return answer_2
+
 
 	if not DATA_FILE.is_file():
 			password = prompt_new_master_pw()
