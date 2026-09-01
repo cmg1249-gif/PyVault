@@ -2,8 +2,6 @@ import requests
 import hashlib
 PWNED_PW_ENDPOINT = "https://api.pwnedpasswords.com/range/"
 
-
-
 def build_pwned_db(beg_hash: str) -> dict[str, int]:
 	"""Takes the first 5 chars of hash and builds the data dictionary to compare against"""
 	data = {
@@ -15,7 +13,6 @@ def build_pwned_db(beg_hash: str) -> dict[str, int]:
 			key, value = line.split(":")
 			data[key] = int(value)
 	return data
-
 
 def get_hash(pw: str) -> list[str]:
 	"""Expects raw string, returns split hexa digits of pw"""

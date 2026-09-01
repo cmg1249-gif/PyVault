@@ -6,10 +6,10 @@ data lives and the design behind it, see
 [README → Where are my passwords stored?](README.md#where-are-my-passwords-stored).
 
 > **Before you store anything real, read the warning at the top of the
-> [README](README.md).** PyVault is an educational project with no master
-> password — anyone who can use your unlocked computer can open it and read
-> every saved password. For accounts you actually care about, use an
-> established password manager.
+> [README](README.md).** PyVault is an educational project. It is locked
+> behind a master password (Argon2id), but it has not been security-audited
+> and has no idle auto-lock — once unlocked it stays open until you close it.
+> For accounts you actually care about, use an established password manager.
 
 ## A quick tour of the main window
 
@@ -31,7 +31,7 @@ data lives and the design behind it, see
   shows its saved login.
 - **Save** — writes the current three fields to your encrypted vault.
 - **All Accounts** — opens a window listing every account you've saved.
-- **Options** menu (top of the window) — key and vault backup/restore, and
+- **Options** menu (top of the window) — vault backup and restore, and
   Exit.
 
 ## Everyday tasks
@@ -68,9 +68,9 @@ data lives and the design behind it, see
    nothing is overwritten silently.
 5. On success you'll see *"Successfully saved new account data!"*.
 
-> The **very first** password you ever save creates the vault and its
-> encryption key. PyVault reminds you not to delete the PyVault entry in your
-> OS's key manager — if that key is gone, the vault can't be opened.
+> Your vault was created the first time PyVault started, locked behind the
+> master password you chose. That password is never stored anywhere — if you
+> forget it, there is no reset or recovery, so pick one you'll remember.
 
 ### Look up a saved password
 
@@ -103,36 +103,30 @@ data lives and the design behind it, see
 
 ## Keeping a backup
 
-Restoring PyVault takes **two** things, and they're backed up separately:
-your **key** and your **vault**. Both live in the **Options** menu. Do the key
-export **now**, before you ever need it — without the key, a vault file can't
-be opened, and there is no reset or recovery email.
-
-### Export your key
-
-**Options → Export Vault Key**, then choose where to save the `.key` file.
-This file can decrypt your vault, so it's as sensitive as the passwords
-themselves — keep it somewhere trusted (e.g. a USB stick in a drawer).
+A backup is **one file plus the master password it was created under**. The
+exported vault carries its own salt and Argon2 parameters, so any machine
+with PyVault and that password can open it — there is no separate key file
+to manage.
 
 ### Export your vault
 
-**Options → Export Vault**, then choose where to save the `.enc` file. This
-copy is just ciphertext — useless without the key — so it's the safe half to
-keep in cloud storage.
-
-> **Store the two apart.** Anyone who has *both* files has all your passwords.
-> Key in one place, vault in another.
+**Options → Export Vault**, then choose where to save the `.enc` file. The
+copy is ciphertext: without the master password it is unreadable, so it is
+reasonably safe to keep in cloud storage. The password itself is the other
+half — if you forget it, no backup can be opened.
 
 ### Restore on a new machine
 
-1. Install and run PyVault once.
-2. **Options → Import Vault Key** and pick your key backup.
-3. **Options → Import Vault** and pick your vault backup.
+1. Install and run PyVault once (create a throwaway vault if prompted).
+2. **Options → Import Vault** and pick your vault backup.
+3. Enter the **master password that backup was created under** — PyVault
+   proves the password opens the file before committing to it, so a typo
+   or the wrong file can't wreck anything.
 
-Importing the **key first** means the vault opens as soon as it lands. If you
-import the vault first, PyVault warns that your key won't open it yet — just
-bring the key across next. On import, PyVault copies any existing vault to
-`data.enc.bak` first, so a mistaken import is recoverable.
+On import, any existing vault is first copied to a fresh numbered backup
+(`data.enc.bak`, `data.enc.bak_1`, …), so an import never destroys an
+earlier backup and a mistaken import is always recoverable — import the
+numbered backup file to put things back.
 
 ## Dialogs you might see
 
@@ -141,26 +135,27 @@ bring the key across next. On import, PyVault copies any existing vault to
 | *Please enter all fields* | Website or Password was left blank | Fill both, then Save |
 | *Password Found!* | The password appears in a known breach | **No** to choose another, **Yes** to save it anyway |
 | *Overwrite Warning* | You already have an entry for this website | **Yes** replaces it, **No** keeps the old one |
-| *Vault Can't Be Unlocked / Keys do not match* | The key in your keyring doesn't match this vault | **No**, then import the correct key — don't reset |
-| *Old Vault file already exists! Overwrite?* | Importing over an existing vault | **Yes** overwrites (old one is copied to `.bak` first) |
-| *No Key — import your key next…* | You imported a vault but have no key yet | Import your key backup next |
+| *Vault Locked* (at startup) | PyVault wants your master password before opening | Type it — a wrong password is rejected and re-asked |
+| *Old Vault file already exists! Overwrite?* | Importing over an existing vault | **Yes** replaces it (the old vault is saved to a numbered backup first) |
+| *Incorrect Password* (during import) | The password you typed doesn't open the chosen backup | Retype it, or Cancel to back out |
+| *Not A Vault* (during import) | The chosen file isn't a PyVault v2 vault | Pick the right `.enc` file |
 
 ## Good habits
 
-- **Export your key today.** It's the one piece that can never be regenerated.
-- **Keep your key and vault in different places** — together they undo the
-  encryption entirely.
-- **Lock your computer.** With no master password, an unlocked machine is an
-  open vault.
+- **Never forget your master password.** It is stored nowhere and there is no
+  recovery — it is the one thing that can't be replaced.
+- **Export a vault backup now and then**, especially before big changes.
+- **Lock your computer.** PyVault has no idle auto-lock yet, so an unlocked
+  session stays open as long as the app runs.
 - **Paste generated passwords promptly** (10-second clipboard clear), and be
   aware of Windows clipboard history.
 
 ## Troubleshooting
 
-- **"Vault Can't Be Unlocked" / "Keys do not match"** — almost always a key
-  that doesn't match the vault, **not** lost data. Your passwords are still
-  there; the file is locked, not damaged. Import the correct key rather than
-  choosing to reset. (Resetting erases everything and starts fresh.)
+- **Wrong master password at unlock** — almost always a typo, **not** lost
+  data. Your passwords are still there; the file is locked, not damaged. Try
+  again rather than choosing to reset. (Resetting erases everything and
+  starts fresh.)
 - **Search says "Account info not found!"** — the website name must match what
   you saved. Open **All Accounts** to see the exact names.
 - **Generated password didn't clear from the clipboard** — the auto-clear only
@@ -172,4 +167,4 @@ bring the key across next. On import, PyVault copies any existing vault to
 ---
 
 For version history, see [CHANGELOG.md](CHANGELOG.md). Current release:
-**v1.9.0**.
+**v2.0.1**.

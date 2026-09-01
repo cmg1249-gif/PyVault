@@ -5,16 +5,16 @@ import secrets
 import string
 import threading
 import pwn_checker
+import json
 from cryptography.fernet import InvalidToken, Fernet
 from requests import RequestException
 from tkinter import *
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from pathlib import Path
 from tkinter import filedialog
-
 from encryption import DATA_FILE
-
-VERSION: str = "1.9.0"
+MP_LENGTH_REQ = 12
+VERSION: str = "2.0.0-beta.1"
 DEFAULT_EMAIL: str = "@gmail.com"
 LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
 popup = None
@@ -259,11 +259,6 @@ def find_all_accounts() -> None:
 # Export/Import Key GUI file dialog building
 def export_vault_wrapper() -> None:
 	"""Asks where to save a vault backup, then copies the vault there.
-
-	The backup is ciphertext and useless without the key, so on its own it
-	is safe to store almost anywhere - but restoring also needs a key backup
-	(Export Vault Key). Cancelling the dialog does nothing; a missing vault
-	(VaultNotFoundError) is reported to the user.
 	"""
 	user_chosen_path = filedialog.asksaveasfilename(
 		defaultextension=".enc",
@@ -278,17 +273,9 @@ def export_vault_wrapper() -> None:
 	except encryption.VaultNotFoundError:
 		messagebox.showerror(title="Error", message="Vault Can't Be Found")
 
-def import_vault_wrapper() -> None:
-	"""Asks for a vault backup file, confirms, checks the key, then imports it.
 
-	Guards in order: user cancelled; an existing vault would be overwritten
-	(the current vault is copied to data.enc.bak first, so this is
-	recoverable); and the current key does not open the chosen vault. A key
-	that does not decrypt it warns and lets the user back out; no key at all
-	is allowed through, since a restore may bring the vault before its key.
-	Only after the guards pass is the vault committed via
-	encryption.import_vault().
-	"""
+
+def import_vault_wrapper() -> None:
 	user_chosen_path = filedialog.askopenfilename(
 		defaultextension=".enc",
 		filetypes=[("Encrypted File", "*.enc"), ("All Files", "*.*")],
@@ -297,80 +284,32 @@ def import_vault_wrapper() -> None:
 	if not user_chosen_path or user_chosen_path == "":
 		return
 	if DATA_FILE.is_file():
-		y_or_n =messagebox.askyesno(title="Old Vault", message="Old Vault file already exists! Overwrite?")
+		y_or_n = messagebox.askyesno(title="Replacing Current Vault", message="Replace your current vault? (Your current vault will be backed up automatically first.)")
 		if y_or_n is None or y_or_n is False:
 			return
-	try:
-		pairs = encryption.does_vault_go_with_key(user_chosen_path)
-	except encryption.KeyNotFoundError:
-		messagebox.showinfo(title="No Key", message="No key found — import your key next or the vault won't open.")
-		pairs = True
-	if not pairs:
-		if not messagebox.askyesno(title="Error", message="Wrong Key for this vault, continue?"):
+	while True:
+		password = prompt_for_password()
+		if password is None:
 			return
-	try:
-		encryption.import_vault(user_chosen_path)
-		messagebox.showinfo(title="Success!", message=f"Your file has been imported to: {user_chosen_path}!")
-	except encryption.VaultNotFoundError:
-		messagebox.showerror(title="Error", message="Vault Can't Be Found")
-def export_key_wrapper() -> None:
-	"""Asks where to save a key backup, then writes the vault key there.
+		try:
+			vault_string = Path(user_chosen_path).read_text()
+			encryption.open_vault(password, vault_string)
+		except InvalidToken:
+			messagebox.showinfo(title="Error: Password", message="Incorrect Password")
+			continue
+		except ValueError:
+			messagebox.showinfo(title="Error: Not A Vault", message="Not a valid v2 Vault")
+			return
+		break
 
-	Does nothing if the user cancels the dialog. The exported file can
-	decrypt the vault, so it should be stored somewhere trusted.
-	"""
-	user_chosen_path = filedialog.asksaveasfilename(
-		defaultextension=".key",
-		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
-		initialfile="pyvault_backup.key",
+	backup = encryption.import_vault(user_chosen_path)
 
-	)
-	if not user_chosen_path or user_chosen_path == "":
-		return
-	try:
-		encryption.export_key(user_chosen_path)
-		messagebox.showinfo(title="Success!", message=f"Your file has been saved to {user_chosen_path}")
-	except encryption.KeyNotFoundError:
-		messagebox.showerror(title="KeyNotFound Error", message="No key file found!")
-
-def import_key_wrapper() -> None:
-	"""Asks for a key backup file, checks it against the vault, then imports it.
-
-	Guards in order: user cancelled, file is not a valid key, and key does
-	not open the existing vault (warns that saved passwords become
-	unreadable and lets the user back out). Only after all checks pass is
-	the key committed to the keyring via encryption.import_key().
-	"""
-	user_chosen_path = filedialog.askopenfilename(
-		filetypes=[("Key File", "*.key"), ("All Files", "*.*")],
-		title="Import Key Backup File",
-	)
-	if not user_chosen_path or user_chosen_path == "":
-		return
-	token: bytes = Path(user_chosen_path).read_text(encoding="utf-8").strip().encode("utf-8")
-	try:
-		Fernet(token)
-	except ValueError:
-		messagebox.showinfo(title="Value Error", message="Not a valid vault key!")
-		return
-	if encryption.DATA_FILE.is_file():
-		if not encryption.does_key_decrypt_vault(token):
-			y_or_n = messagebox.askyesno(title="Key does not decrypt vault",message="key doesn't match your vault — saved passwords will become unreadable. Continue?")
-			if not y_or_n:
-				return
-	try:
-		encryption.import_key(user_chosen_path)
-	except encryption.KeyNotValidError:
-		messagebox.showerror(title="Key Error", message="This file is not a key or it is corrupted!")
-		return
-	except FileNotFoundError:
-		messagebox.showerror(title="File Not Found", message="File not found!Either missing or moved!")
-		return
+	encryption.lock()
+	encryption.unlock(password)
+	if backup is None:
+		messagebox.showinfo(title="Success!", message="Your new vault has been imported!")
 	else:
-		messagebox.showinfo(title="Success!", message="File successfully imported!")
-
-	encryption.import_key(user_chosen_path)
-
+		messagebox.showinfo(title="Success!", message=f"Your new vault has been imported and a backup of your previous vault is located at: {backup}!")
 # Popup Management
 
 def on_close() -> None:
@@ -378,11 +317,99 @@ def on_close() -> None:
 	global popup
 	popup.destroy()
 	popup = None
+def prompt_for_password() -> str | None:
+	"""Prompts the user once to enter a password for a vault."""
+	password = simpledialog.askstring(
+		title="Password",
+		prompt="Please enter your Master Password to open the vault you are importing",
+		show="*",
+		parent=window
+	)
+	if password is None:
+		return None
+	return password
 
-# Encrypt json data if its there and remove json file
-encryption.convert_json()
+def prompt_new_master_pw() -> str | None:
+	"""Prompts user twice for master password returns string or None"""
+	answer_1 = simpledialog.askstring(
+		title="No Vault File",
+		prompt="Please enter your Master Password to build your new Vault",
+		show="*",
+		parent=window
+	)
+	answer_2 = simpledialog.askstring(
+		title="No Vault File",
+		prompt="Please enter your Master Password to build your new Vault",
+		show="*",
+		parent=window
+	)
+	if answer_1 is None or answer_2 is None:
+		return None
+	elif answer_1 != answer_2:
+		return None
+	elif (answer_1 == "") or (answer_2 == ""):
+		return None
+	elif len(answer_2) < MP_LENGTH_REQ:
+		y_or_n = messagebox.askyesno(title="Invalid Password",
+									 message="The password you entered is to short or invalid,try again?\nPasswords must be 12 characters long")
+		if y_or_n is None or y_or_n is False:
+			return None
+		if y_or_n:
+			return prompt_new_master_pw()
+	else:
+		return answer_2
+# A Gated Startup
+def start_up_gate() -> bool:
+	"""To be filled in"""
+
+
+	if not DATA_FILE.is_file():
+			password = prompt_new_master_pw()
+			serialized_json_string = encryption.create_vault(password, json.dumps({}))
+			DATA_FILE.write_text(serialized_json_string, encoding="utf-8")
+			encryption.unlock(password)
+			return True
+	elif  encryption.is_v1_vault():
+		y_or_n = messagebox.askyesno(
+			title="We've upgraded to v2!",
+			message=(
+				"PyVault now locks your vault with a master password, using stronger "
+				"encryption (Argon2id) than the previous version.\n\n"
+				"To upgrade, you'll choose a master password on the next screen. "
+				"You'll enter it each time PyVault starts from now on, so pick "
+				"something you won't forget — it cannot be recovered.\n\n"
+				"Your current vault is copied to data.enc.bak in your PyVault_Vault "
+				"folder before anything is changed.\n\n"
+				"If you decline, PyVault will close: this version cannot open an "
+				"old vault.\n\n"
+				"Upgrade now?"
+			),
+		)
+		if y_or_n is None or y_or_n is False:
+			return False
+		elif y_or_n:
+			password = prompt_new_master_pw()
+			encryption.migrate_v1_to_v2(password)
+			encryption.unlock(password)
+			return True
+	else:
+		password = simpledialog.askstring(
+		title="Vault Locked",
+		prompt="Please enter your Master Password to open your Vault",
+		show="*",
+		parent=window
+	)
+		if password is None:
+			return False
+		try:
+			encryption.unlock(password)
+			return True
+		except encryption.IncorrectPasswordError:
+			start_up_gate()
+
 # Window Creation
 window = Tk()
+
 window.title(f"PyVault: Password Manager v{VERSION}")
 window.minsize(300, 300)
 window.config(bg="white", padx=50, pady=50)
@@ -431,13 +458,11 @@ all_accounts_button.grid(row=5, column=1, columnspan=2,sticky=EW)
 # File Menu Creation
 menu_bar = Menu(window)                                      # Parent: window
 sub_menu = Menu(menu_bar, tearoff=0)                         # Parent: menu_bar
-sub_menu.add_command(label="Export Vault Key", command=export_key_wrapper) # Creating Export Key button
-sub_menu.add_command(label="Import Vault Key", command=import_key_wrapper)  # Creating Import Key button
 sub_menu.add_command(label="Export Vault", command=export_vault_wrapper)  # Creating Export Vault button
 sub_menu.add_command(label="Import Vault", command=import_vault_wrapper)  # Creating Import Vault button
 sub_menu.add_command(label="Exit", command=window.destroy)                  # Command and label for exit
 menu_bar.add_cascade(label="Options", menu=sub_menu)			 # Make a cascading menu
 window.config(menu=menu_bar)								 # put the menu_bar together on the window
 
-
+start_up_gate()
 window.mainloop()

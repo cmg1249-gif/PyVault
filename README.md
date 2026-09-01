@@ -1,18 +1,19 @@
 # PyVault
 
 A Tkinter GUI password manager with an encrypted vault. Started as Day 29–30 of
-*100 Days of Code*, then extended with real encryption, OS-keyring key storage,
-breach checking, key and vault backup, and an account browser.
+*100 Days of Code*, then extended with real encryption, a master password
+(Argon2id), breach checking, vault backup, and an account browser.
 
 > **⚠️ Educational project — please read before trusting it with real passwords.**
 > I built PyVault to learn cryptography, GUI development, and software release
-> practices. It uses real encryption (Fernet via the `cryptography` library),
-> but it has **not been security-audited**, and it has known gaps a mature
-> password manager doesn't:
+> practices. It uses real encryption (Fernet via the `cryptography` library)
+> and a real key-derivation function (Argon2id), but it has **not been
+> security-audited**, and it has known gaps a mature password manager doesn't:
 >
-> - **No master password.** PyVault unlocks the vault automatically using the
->   key in your OS keyring. Anyone who can use your unlocked computer can open
->   PyVault and read every saved password.
+> - **Vault writes are not atomic.** A crash or power loss while saving can
+>   truncate the vault file. Keep a backup.
+> - **No idle auto-lock.** Once you unlock it, the vault stays unlocked until
+>   you close the app.
 > - Passwords are shown in plaintext popups.
 > - Clipboard auto-clear can't scrub Windows clipboard *history* (Win+V), and
 >   won't fire if the app is closed mid-countdown.
@@ -22,6 +23,10 @@ breach checking, key and vault backup, and an account browser.
 
 ## Features
 
+- **Master password (Argon2id)** — the vault is locked behind a password you
+  choose. It is never stored: the encryption key is re-derived from it every
+  time you unlock, and exists only in memory for that session. An old
+  (pre-v2) vault is detected on startup and offered a one-way upgrade
 - **Generate** a strong 13-character password using Python's `secrets` module
   (cryptographically secure randomness — letters, digits, and symbols,
   securely shuffled) — automatically copied to your clipboard
@@ -44,13 +49,12 @@ breach checking, key and vault backup, and an account browser.
   itself after you save so it never shows stale entries
 - **Delete accounts** from the All Accounts window — select an entry,
   confirm, and it's removed from the encrypted vault
-- **Key backup and restore** — *Options → Export Vault Key* writes your
-  encryption key to a file you choose; *Import Vault Key* restores it.
-  Imports are validated before they commit
-- **Vault backup and restore** — *Options → Export Vault* saves a copy of your
-  encrypted vault; *Import Vault* replaces it from a backup. Importing copies
-  the current vault to `data.enc.bak` first, and warns if your key doesn't open
-  the vault you're bringing in
+- **Vault backup and restore** — *Options → Export Vault* saves a copy of
+  your encrypted vault; *Import Vault* replaces it from a backup after asking
+  for that backup's master password and proving it opens the file. Importing
+  first copies the current vault to a fresh numbered backup
+  (`data.enc.bak`, `data.enc.bak_1`, …), so no import ever destroys an
+  earlier backup
 - Validates that all fields are filled before saving
 
 ## How to run it
@@ -100,7 +104,7 @@ and there's no Desktop shortcut — those are Windows-only for now.
 
 Once it's open, see **[USAGE.md](USAGE.md)** for a walkthrough of everyday
 tasks — generating and saving passwords, searching, the All Accounts window,
-and backing up your key and vault.
+and backing up your vault.
 
 ## Where are my passwords stored?
 
@@ -109,53 +113,79 @@ folder, deliberately *not* the program folder, so updating or re-downloading
 PyVault never disturbs it. It's encrypted with
 [Fernet](https://cryptography.io/en/latest/fernet/) (AES-128-CBC + HMAC).
 
-The encryption key is stored in your **operating system's keyring**
-(Windows Credential Manager / macOS Keychain / Linux Secret Service), not in
-the vault file and not in the code.
+**The encryption key is not stored anywhere.** It is derived from your master
+password with [Argon2id](https://en.wikipedia.org/wiki/Argon2), a deliberately
+slow, memory-hard function, every time you unlock the vault. It lives in memory
+for that session and is gone when you close the app.
 
-That split is the whole design: **the vault file is useless without the key,
-and the key is useless without the vault file.**
+The vault file itself is a JSON envelope: a readable header holding the Argon2
+parameters and a random per-vault salt, wrapped around the encrypted accounts.
+Nothing in that header is secret — it is the recipe for rebuilding the key, and
+it is useless without the password. Storing the parameters in the file is what
+lets the cost settings be raised in a later release without locking you out of
+an existing vault.
+
+That is the whole design: **the vault file is useless without your master
+password, and there is no copy of that password anywhere.**
 
 ## Backing up
 
-You need **both** pieces to restore, and they're backed up separately.
+Two things keep your passwords recoverable, and only one of them is a file.
 
-**Your key** — *Options → Export Vault Key*, and keep the file somewhere safe.
-Do this now, before you need it. Without the key, a vault file is
-unrecoverable; there is no reset, no recovery email, and no way around it.
+**Your master password** — remember it. There is no copy of it anywhere, no
+reset, no recovery email, and no back door. If you forget it, the vault is
+lost, and that is the point of the design.
 
 **Your vault** — *Options → Export Vault* writes a copy wherever you choose (or
-copy `~/PyVault_Vault/data.enc` yourself). It's just ciphertext, so it's the
-safe half to keep in cloud storage.
+copy `~/PyVault_Vault/data.enc` yourself). Do this regularly: vault writes are
+not yet atomic, so a crash during a save can damage the file.
 
-### Store them in different places
-
-Anyone holding both files has all of your passwords, so putting them together
-undoes the encryption entirely. Keep them apart — key on a USB stick in a
-drawer, vault in cloud storage, or any similar split.
-
-The upside of that split: **a vault file on its own is safe to store almost
-anywhere**, because it's just ciphertext. The key file is the sensitive one.
-Treat it exactly as carefully as the passwords it protects.
+A vault backup is just ciphertext locked behind your master password, so it is
+safe to keep in cloud storage — but choose a strong master password, because
+anyone holding the file can attack it offline for as long as they like. Argon2
+is what makes that expensive, not impossible.
 
 ### Restoring on a new machine
 
-1. Install PyVault and run it once.
-2. *Options → Import Vault Key*, and pick your key backup.
-3. *Options → Import Vault*, and pick your vault backup (or copy `data.enc`
+1. Install PyVault and run it once. It will offer to create a new vault —
+   you can let it, or close it.
+2. *Options → Import Vault*, and pick your vault backup (or copy `data.enc`
    back to `~/PyVault_Vault/` yourself).
+3. Restart PyVault and unlock with your master password.
 
-Importing the key first means the vault opens as soon as it lands. If you do it
-the other way round, PyVault imports the vault but warns that your key won't
-open it yet — bring the key across next and you're set.
+If a vault will not open, the cause is almost always a mistyped master
+password. **Your passwords are still there** — the file is locked, not
+damaged.
 
-If a vault ever won't open, the cause is almost always a key that doesn't match
-it. **Your passwords are still there** — the file is locked, not damaged.
-Import the right key rather than resetting the vault.
+## Roadmap
+
+Planned for **v2.1**:
+
+- **Atomic vault writes** — saving currently truncates the vault file and then
+  rewrites it, so a crash or power loss in between can leave it damaged. The
+  fix is to write a temporary file alongside the vault, flush it to disk, and
+  atomically replace the original, so a save either fully happens or does not
+  happen at all
+- **Change master password** — re-encrypts the vault under a new password and
+  fresh Argon2 parameters, which is also how a vault created under older,
+  weaker settings gets upgraded to the current ones
+- **Readable error dialogs** in place of the tracebacks that a failed unlock
+  or migration currently produces
+- **Idle auto-lock** — clear the session after a period of inactivity, so an
+  unlocked vault does not stay open on an unattended machine
+- **Removal of the v1 migration path** (`read_key`, `migrate_v1_to_v2` and the
+  keyring dependency), once no pre-v2 vault could reasonably remain
+- **Test coverage** for unlock, save/load, and migration
+
+Planned after that:
+
+- **A refreshed interface** — the current window is plain Tkinter defaults.
+  Restyling it with `ttk` widgets and a considered layout, so it looks like
+  something you would choose to use rather than a class project
 
 ## Version history
 
-See [CHANGELOG.md](CHANGELOG.md). Current release: **v1.9.0**.
+See [CHANGELOG.md](CHANGELOG.md). Current release: **v2.0.1**.
 
 ## License
 
