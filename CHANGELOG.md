@@ -1,12 +1,28 @@
 # Changelog
 
+## v2.0.2 — 2026-09-05
+
+- **Version string fixed.** The title bar still read `2.0.0-beta.1`
+  through both the v2.0.0 and v2.0.1 releases, so a released build
+  reported itself as a beta. It now matches the tag
+- **Argon2 memory cost actually raised to 64 MiB.** The v2.0.1 entry below
+  claimed this, but the change never landed: `memory_cost` stayed at
+  8 MiB while only `time_cost` and `parallelism` were raised. 8 MiB is
+  below OWASP's guidance for Argon2id, so the shipped v2.0.1 did not meet
+  the bar its own changelog claimed. The parameter is now `64 * 1024` KiB,
+  and the v2.0.1 entry has been corrected to say what it really shipped
+- As before, this applies to **newly created vaults only**. An existing
+  vault keeps the parameters stored in its own header and still opens
+  normally, which is the reason those parameters live in the file.
+  Re-deriving an old vault at the new settings arrives with the
+  change-master-password feature
+
 ## v2.0.1 — 2026-09-01
 
-- **Argon2 cost parameters raised** to 64 MiB memory, 3 iterations,
-  4 lanes — at or above OWASP guidance. Applies to newly created vaults;
-  an existing vault keeps the parameters in its own header and still opens.
-  Re-deriving an old vault at the new settings will arrive with the
-  change-master-password feature
+- **Argon2 cost parameters partly raised**: `time_cost` 1 to 3 and
+  `parallelism` 1 to 4. Memory was left at 8 MiB. (This entry originally
+  claimed 64 MiB memory as well, which was not true of the released code.
+  Corrected in v2.0.2)
 - **Documentation rewritten for v2**: README and USAGE no longer describe
   the removed v1 key export/import; backup/restore is documented as one
   file plus the master password
