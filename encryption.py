@@ -35,7 +35,7 @@ DATA_FILE = VAULT_DIR.joinpath("./data.enc")
 DATA_FILE_BAK = VAULT_DIR.joinpath("./data.enc.bak")
 
 HEADER_VERSION = 1
-DEFAULT_PARAMS = dict(memory_cost=8 * 1024, time_cost=3, parallelism=4)
+DEFAULT_PARAMS = dict(memory_cost=64 * 1024, time_cost=3, parallelism=4)
 _session = None
 _counter = 0
 

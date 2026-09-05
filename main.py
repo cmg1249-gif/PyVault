@@ -14,7 +14,7 @@ from pathlib import Path
 from tkinter import filedialog
 from encryption import DATA_FILE
 MP_LENGTH_REQ = 12
-VERSION: str = "2.0.0-beta.1"
+VERSION: str = "2.0.2"
 DEFAULT_EMAIL: str = "@gmail.com"
 LOGO_IMG_PATH = Path(__file__).parent / "logo_final_200.png"
 popup = None
