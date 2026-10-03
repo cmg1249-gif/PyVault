@@ -4,6 +4,12 @@ A Tkinter GUI password manager with an encrypted vault. Started as Day 29–30 o
 *100 Days of Code*, then extended with real encryption, a master password
 (Argon2id), breach checking, vault backup, and an account browser.
 
+🏆 **Tied for 2nd place in the college student showcase** at the first annual
+Native Computer Science & Cybersecurity Conference (Turtle Mountain College,
+2026), where PyVault was presented as a research poster. Read more in
+Indigitize's feature,
+[*Meet Connor: Building a Pathway from Curiosity to Cybersecurity*](https://www.indigitize.org/skocode-voices/skocode-year-three-grow-our-community-expanding-opportunities-p66sw).
+
 > **⚠️ Educational project — please read before trusting it with real passwords.**
 > I built PyVault to learn cryptography, GUI development, and software release
 > practices. It uses real encryption (Fernet via the `cryptography` library)
